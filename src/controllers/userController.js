@@ -8,7 +8,7 @@ exports.createUser = async (req, res) => {
     const { data, error } = await supabase
       .from('users')
       .insert([{ username, role }])
-      .select(); // Ensure we use .select() to fetch the inserted data
+      .select();
 
     if (error) {
       console.error('Error creating user:', error.message);
@@ -16,6 +16,7 @@ exports.createUser = async (req, res) => {
     }
 
     res.status(201).json({ message: 'User created!', user: data });
+    
   } catch (err) {
     console.error('Unexpected error:', err.message);
     res.status(500).json({ error: 'Something went wrong' });
@@ -33,6 +34,7 @@ exports.getUsers = async (req, res) => {
     }
 
     res.status(200).json(data);
+
   } catch (err) {
     console.error('Unexpected error:', err.message);
     res.status(500).json({ error: 'Something went wrong' });
