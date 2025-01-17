@@ -1,29 +1,46 @@
-const supabase = require('../config/supabase');
+exports.evaluate = (userData, action, resource, context, policies) => {
+  // Iterate through policies and evaluate rules
+  for (const policy of policies) {
+    for (const rule of policy.rules) {
+      if (
+        rule.role === userData.role &&
+        rule.action === action &&
+        rule.resource === resource &&
+        (!rule.conditions || checkConditions(rule.conditions, context))
+      ) {
+        return { access: rule.effect === "allow", reason: "Policy matched" };
+      }
+    }
+  }
 
-// Evaluate a policy
-exports.evaluate = async (user, action, resource) => {
-  // Fetch user role
-  const { data: userData, error: userError } = await supabase
-    .from('users')
-    .select('role')
-    .eq('username', user)
-    .single();
+  // Default deny if no policy matches
+  return { access: false, reason: "No matching policy found" };
+};
 
-  if (userError || !userData) return { access: false, reason: 'User not found' };
+exports.checkAccess = (userData, resource, policies) => {
+  // Iterate through policies and check if the user has access to the resource
+  for (const policy of policies) {
+    for (const rule of policy.rules) {
+      if (
+        rule.role === userData.role &&
+        rule.resource === resource &&
+        rule.effect === "allow"
+      ) {
+        return { access: true, reason: "Access granted by policy" };
+      }
+    }
+  }
 
-  // Fetch matching policies
-  const { data: policies, error: policyError } = await supabase
-    .from('policies')
-    .select('*');
+  // Default deny if no policy allows access
+  return { access: false, reason: "No policy allows access" };
+};
 
-  if (policyError) return { access: false, reason: 'Policy fetch error' };
-
-  // Simulate policy evaluation
-  const allowed = policies.some((policy) =>
-    policy.rules.some((rule) =>
-      rule.role === userData.role && rule.action === action && rule.resource === resource
-    )
-  );
-
-  return allowed ? { access: true } : { access: false, reason: 'Policy denied' };
+// Helper function to check conditions
+const checkConditions = (conditions, context) => {
+  for (const key in conditions) {
+    if (conditions[key] !== context[key]) {
+      return false;
+    }
+  }
+  return true;
 };
