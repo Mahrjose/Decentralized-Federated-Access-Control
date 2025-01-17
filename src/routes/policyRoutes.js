@@ -1,9 +1,14 @@
-const express = require('express');
-const { addPolicy, evaluatePolicy } = require('../controllers/policyController');
+const express = require("express");
+const policyController = require("../controllers/policyController");
 
 const router = express.Router();
 
-router.post('/', addPolicy);
-router.post('/evaluate', evaluatePolicy);
+router.get("/", policyController.listPolicies);
+router.get("/:policyID", policyController.getPolicy);
+
+router.post("/", policyController.createPolicy);
+router.put("/:policyID", policyController.updatePolicy);
+
+router.delete("/:policyID", policyController.deletePolicy);
 
 module.exports = router;
