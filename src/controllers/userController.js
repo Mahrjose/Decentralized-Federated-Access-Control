@@ -1,7 +1,16 @@
 const supabase = require("../config/supabase");
 const bcrypt = require("bcrypt");
 
-// Input validation helper
+/**
+ * Validates user input data against required constraints
+ * @param {Object} userData - The user data to validate
+ * @param {string} userData.username - Username (min 3 characters)
+ * @param {string} [userData.password] - Password (min 8 characters)
+ * @param {string} userData.role - User role (admin/user/manager)
+ * @param {Object} [userData.attributes] - Additional user attributes
+ * @throws {Error} If validation fails
+ * @returns {boolean} Returns true if validation passes
+ */
 const validateUserInput = (userData) => {
   const { username, password, role, attributes } = userData;
 
@@ -24,7 +33,17 @@ const validateUserInput = (userData) => {
   return true;
 };
 
-// Create a new user
+/**
+ * Creates a new user in the system
+ * @route POST /users
+ * @param {Object} req.body - User creation payload
+ * @param {string} req.body.username - Unique username
+ * @param {string} req.body.password - User password
+ * @param {string} req.body.role - User role (admin/user/manager)
+ * @param {Object} [req.body.attributes] - Additional user attributes
+ * @returns {Object} Created user data (excluding password)
+ * @throws {Error} On validation or database errors
+ */
 exports.createUser = async (req, res) => {
   const { username, password, role, attributes } = req.body;
 
@@ -63,9 +82,7 @@ exports.createUser = async (req, res) => {
     }
 
     if (!data || data.length === 0) {
-      return res
-        .status(400)
-        .json({ error: "No data returned after user creation" });
+      return res.status(400).json({ error: "No data returned after user creation" });
     }
 
     const userResponse = data[0];
@@ -81,45 +98,18 @@ exports.createUser = async (req, res) => {
   }
 };
 
-// Get user details by ID
-exports.getUser = async (req, res) => {
-  const { userID } = req.params;
-
-  try {
-    if (!userID) {
-      return res.status(400).json({ error: "UserID is required" });
-    }
-
-    const { data, error } = await supabase
-      .from("users")
-      .select("userid, username, role, attributes, lastlogin, status")
-      .eq("userid", userID)
-      .single();
-
-    if (error) {
-      console.error("Error fetching user:", error);
-      return res.status(400).json({
-        error: error.message,
-        details: error.details,
-        code: error.code,
-      });
-    }
-
-    if (!data) {
-      return res.status(404).json({ error: "User not found" });
-    }
-
-    res.status(200).json(data);
-  } catch (err) {
-    console.error("Unexpected error:", err);
-    res.status(500).json({
-      error: err.message || "Something went wrong",
-      details: process.env.NODE_ENV === "development" ? err.stack : undefined,
-    });
-  }
-};
-
-// Update user details
+/**
+ * Updates an existing user's details
+ * @route PUT /users/:userID
+ * @param {string} req.params.userID - The ID of the user to update
+ * @param {Object} req.body - User update payload
+ * @param {string} [req.body.username] - New username
+ * @param {string} [req.body.password] - New password
+ * @param {string} [req.body.role] - New role
+ * @param {Object} [req.body.attributes] - Updated attributes
+ * @returns {Object} Updated user data
+ * @throws {Error} On validation failure or database error
+ */
 exports.updateUser = async (req, res) => {
   const { userID } = req.params;
   const { username, password, role, attributes } = req.body;
@@ -142,9 +132,7 @@ exports.updateUser = async (req, res) => {
     // Hash the password if it's being updated
     if (password) {
       if (typeof password !== "string" || password.length < 8) {
-        return res
-          .status(400)
-          .json({ error: "Password must be at least 8 characters" });
+        return res.status(400).json({ error: "Password must be at least 8 characters" });
       }
       updateData.password = await bcrypt.hash(password, 10);
     }
@@ -157,7 +145,7 @@ exports.updateUser = async (req, res) => {
 
     if (error) {
       if (error.code === "23505") {
-        return res.status(409).json({ error: "username already exists" });
+        return res.status(409).json({ error: "Username already exists" });
       }
       console.error("Error updating user:", error);
       return res.status(400).json({
@@ -168,10 +156,10 @@ exports.updateUser = async (req, res) => {
     }
 
     if (!data || data.length === 0) {
-      return res.status(404).json({ error: "user not found" });
+      return res.status(404).json({ error: "User not found" });
     }
 
-    res.status(200).json({ message: "user updated!", user: data[0] });
+    res.status(200).json({ message: "User updated!", user: data[0] });
   } catch (err) {
     console.error("Unexpected error:", err);
     res.status(500).json({
@@ -181,7 +169,13 @@ exports.updateUser = async (req, res) => {
   }
 };
 
-// Delete a user
+/**
+ * Deletes a user from the system
+ * @route DELETE /users/:userID
+ * @param {string} req.params.userID - The ID of the user to delete
+ * @returns {Object} Success message
+ * @throws {Error} If deletion fails or user not found
+ */
 exports.deleteUser = async (req, res) => {
   const { userID } = req.params;
 
@@ -214,7 +208,12 @@ exports.deleteUser = async (req, res) => {
   }
 };
 
-// List all users
+/**
+ * Lists all users in the system
+ * @route GET /users
+ * @returns {Array} Array of user objects (excluding passwords)
+ * @throws {Error} If database query fails
+ */
 exports.listUsers = async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -228,6 +227,50 @@ exports.listUsers = async (req, res) => {
         details: error.details,
         code: error.code,
       });
+    }
+
+    res.status(200).json(data);
+  } catch (err) {
+    console.error("Unexpected error:", err);
+    res.status(500).json({
+      error: err.message || "Something went wrong",
+      details: process.env.NODE_ENV === "development" ? err.stack : undefined,
+    });
+  }
+};
+
+/**
+ * Retrieves user details by their ID
+ * @route GET /users/:userID
+ * @param {string} req.params.userID - The ID of the user to retrieve
+ * @returns {Object} User details (excluding password)
+ * @throws {Error} If user not found or database error occurs
+ */
+exports.getUser = async (req, res) => {
+  const { userID } = req.params;
+
+  try {
+    if (!userID) {
+      return res.status(400).json({ error: "UserID is required" });
+    }
+
+    const { data, error } = await supabase
+      .from("users")
+      .select("userid, username, role, attributes, lastlogin, status")
+      .eq("userid", userID)
+      .single();
+
+    if (error) {
+      console.error("Error fetching user:", error);
+      return res.status(400).json({
+        error: error.message,
+        details: error.details,
+        code: error.code,
+      });
+    }
+
+    if (!data) {
+      return res.status(404).json({ error: "User not found" });
     }
 
     res.status(200).json(data);
