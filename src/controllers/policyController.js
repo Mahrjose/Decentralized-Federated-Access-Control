@@ -1,10 +1,5 @@
 const supabase = require("../config/supabase");
 
-/**
- * Validates policy input data
- * @param {Object} policyData - The policy data to validate
- * @throws {Error} if validation fails
- */
 const validatePolicyInput = (policyData) => {
   const { policyName, description, rules } = policyData;
 
@@ -23,10 +18,6 @@ const validatePolicyInput = (policyData) => {
   return true;
 };
 
-/**
- * Creates a new policy
- * @route POST /policies
- */
 exports.createPolicy = async (req, res) => {
   const { policyName, description, rules } = req.body;
 
@@ -85,10 +76,6 @@ exports.createPolicy = async (req, res) => {
   }
 };
 
-/**
- * Updates an existing policy
- * @route PUT /policies/:policyID
- */
 exports.updatePolicy = async (req, res) => {
   const { policyID } = req.params;
   const { policyName, description, rules } = req.body;
@@ -98,7 +85,6 @@ exports.updatePolicy = async (req, res) => {
       return res.status(400).json({ error: "PolicyID is required" });
     }
 
-    // Validate input
     validatePolicyInput({ policyName, description, rules });
 
     const updateData = {
@@ -139,10 +125,6 @@ exports.updatePolicy = async (req, res) => {
   }
 };
 
-/**
- * Deletes a specific policy
- * @route DELETE /policies/:policyID
- */
 exports.deletePolicy = async (req, res) => {
   const { policyID } = req.params;
 
@@ -182,10 +164,6 @@ exports.deletePolicy = async (req, res) => {
   }
 };
 
-/**
- * Lists all policies
- * @route GET /policies
- */
 exports.listPolicies = async (req, res) => {
   try {
     const { data, error } = await supabase.from("policies").select("*");
@@ -208,10 +186,6 @@ exports.listPolicies = async (req, res) => {
   }
 };
 
-/**
- * Retrieves a specific policy by ID
- * @route GET /policies/:policyID
- */
 exports.getPolicy = async (req, res) => {
   const { policyID } = req.params;
 
