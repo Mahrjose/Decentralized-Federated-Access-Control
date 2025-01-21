@@ -1,5 +1,8 @@
 const supabase = require("../config/supabase");
+const logger = require("../config/logger");
+const auditService = require("../services/auditService");
 
+// Validate policy input
 const validatePolicyInput = (policyData) => {
   const { policyName, description, rules } = policyData;
 
@@ -11,13 +14,10 @@ const validatePolicyInput = (policyData) => {
     throw new Error("Description must be a string");
   }
 
-  // if (!rules || typeof rules !== 'object' || Array.isArray(rules)) {
-  //   throw new Error('Rules must be a valid JSON object');
-  // }
-
   return true;
 };
 
+// Create a new policy
 exports.createPolicy = async (req, res) => {
   const { policyName, description, rules } = req.body;
 
@@ -25,57 +25,45 @@ exports.createPolicy = async (req, res) => {
     // Validate input
     validatePolicyInput(req.body);
 
+    // Insert the new policy into the database
     const { data, error } = await supabase
       .from("policies")
-      .insert([
-        {
-          policyname: policyName,
-          description,
-          rules,
-        },
-      ])
+      .insert([{ policyname: policyName, description, rules }])
       .select();
 
     if (error) {
       if (error.code === "23505") {
-        return res.status(409).json({
-          error: "Policy name already exists",
-        });
+        logger.warn(
+          `Policy creation failed: Policy name '${policyName}' already exists`
+        );
+        return res.status(409).json({ error: "Policy name already exists" });
       }
 
-      console.error("Error creating policy:", error);
-      return res.status(400).json({
-        error: error.message,
-      });
+      logger.error("Error creating policy:", error.message);
+      return res.status(400).json({ error: error.message });
     }
 
     if (!data || data.length === 0) {
+      logger.error("No data returned after policy creation");
       return res
         .status(400)
         .json({ error: "No data returned after policy creation" });
     }
+
+    // Log the policy creation
+    await auditService.logPolicyAction("create", data[0]);
 
     res.status(201).json({
       message: "Policy created successfully",
       policy: data[0],
     });
   } catch (err) {
-    if (
-      err.message &&
-      (err.message.includes("must be a string") ||
-        err.message.includes("must be a valid JSON"))
-    ) {
-      return res.status(400).json({ error: err.message });
-    }
-
-    console.error("Unexpected error:", err);
-    res.status(500).json({
-      error: "Internal server error",
-      details: process.env.NODE_ENV === "development" ? err.message : undefined,
-    });
+    logger.error("Unexpected error during policy creation:", err.message);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 
+// Update an existing policy
 exports.updatePolicy = async (req, res) => {
   const { policyID } = req.params;
   const { policyName, description, rules } = req.body;
@@ -85,14 +73,11 @@ exports.updatePolicy = async (req, res) => {
       return res.status(400).json({ error: "PolicyID is required" });
     }
 
+    // Validate input
     validatePolicyInput({ policyName, description, rules });
 
-    const updateData = {
-      policyname: policyName,
-      description,
-      rules,
-    };
-
+    // Update the policy in the database
+    const updateData = { policyname: policyName, description, rules };
     const { data, error } = await supabase
       .from("policies")
       .update(updateData)
@@ -101,30 +86,35 @@ exports.updatePolicy = async (req, res) => {
 
     if (error) {
       if (error.code === "23505") {
+        logger.warn(
+          `Policy update failed: Policy name '${policyName}' already exists`
+        );
         return res.status(409).json({ error: "Policy name already exists" });
       }
 
-      console.error("Error updating policy:", error);
+      logger.error("Error updating policy:", error.message);
       return res.status(400).json({ error: error.message });
     }
 
     if (!data || data.length === 0) {
+      logger.error(`Policy with ID ${policyID} not found`);
       return res.status(404).json({ error: "Policy not found" });
     }
+
+    // Log the policy update
+    await auditService.logPolicyAction("update", data[0]);
 
     res.status(200).json({
       message: "Policy updated successfully",
       policy: data[0],
     });
   } catch (err) {
-    console.error("Unexpected error:", err);
-    res.status(500).json({
-      error: "Internal server error",
-      details: process.env.NODE_ENV === "development" ? err.message : undefined,
-    });
+    logger.error("Unexpected error during policy update:", err.message);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 
+// Delete a policy
 exports.deletePolicy = async (req, res) => {
   const { policyID } = req.params;
 
@@ -133,7 +123,7 @@ exports.deletePolicy = async (req, res) => {
       return res.status(400).json({ error: "PolicyID is required" });
     }
 
-    // Check if policy exists before deletion
+    // Check if the policy exists
     const { data: existingPolicy } = await supabase
       .from("policies")
       .select("policyid")
@@ -141,35 +131,38 @@ exports.deletePolicy = async (req, res) => {
       .single();
 
     if (!existingPolicy) {
+      logger.error(`Policy with ID ${policyID} not found`);
       return res.status(404).json({ error: "Policy not found" });
     }
 
+    // Delete the policy
     const { error } = await supabase
       .from("policies")
       .delete()
       .eq("policyid", policyID);
 
     if (error) {
-      console.error("Error deleting policy:", error);
+      logger.error("Error deleting policy:", error.message);
       return res.status(400).json({ error: error.message });
     }
 
+    // Log the policy deletion
+    await auditService.logPolicyAction("delete", existingPolicy);
+
     res.status(200).json({ message: "Policy deleted successfully" });
   } catch (err) {
-    console.error("Unexpected error:", err);
-    res.status(500).json({
-      error: "Internal server error",
-      details: process.env.NODE_ENV === "development" ? err.message : undefined,
-    });
+    logger.error("Unexpected error during policy deletion:", err.message);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 
+// List all policies
 exports.listPolicies = async (req, res) => {
   try {
     const { data, error } = await supabase.from("policies").select("*");
 
     if (error) {
-      console.error("Error fetching policies:", error);
+      logger.error("Error fetching policies:", error.message);
       return res.status(400).json({ error: error.message });
     }
 
@@ -178,14 +171,12 @@ exports.listPolicies = async (req, res) => {
       policies: data,
     });
   } catch (err) {
-    console.error("Unexpected error:", err);
-    res.status(500).json({
-      error: "Internal server error",
-      details: process.env.NODE_ENV === "development" ? err.message : undefined,
-    });
+    logger.error("Unexpected error during policy listing:", err.message);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 
+// Get a specific policy by ID
 exports.getPolicy = async (req, res) => {
   const { policyID } = req.params;
 
@@ -201,20 +192,18 @@ exports.getPolicy = async (req, res) => {
       .single();
 
     if (error) {
-      console.error("Error fetching policy:", error);
+      logger.error("Error fetching policy:", error.message);
       return res.status(400).json({ error: error.message });
     }
 
     if (!data) {
+      logger.error(`Policy with ID ${policyID} not found`);
       return res.status(404).json({ error: "Policy not found" });
     }
 
     res.status(200).json(data);
   } catch (err) {
-    console.error("Unexpected error:", err);
-    res.status(500).json({
-      error: "Internal server error",
-      details: process.env.NODE_ENV === "development" ? err.message : undefined,
-    });
+    logger.error("Unexpected error during policy fetch:", err.message);
+    res.status(500).json({ error: "Internal server error" });
   }
 };

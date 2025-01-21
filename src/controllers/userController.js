@@ -1,7 +1,9 @@
 const supabase = require("../config/supabase");
 const bcrypt = require("bcrypt");
+const logger = require("../config/logger");
+const auditService = require("../services/auditService");
 
-const validateUserInput = (userData) => {
+const validateUserInput = (userData, isUpdate = false) => {
   const {
     username,
     password,
@@ -12,30 +14,46 @@ const validateUserInput = (userData) => {
     attributes,
   } = userData;
 
-  if (!username || typeof username !== "string" || username.length < 3) {
+  // Validate username
+  if (
+    !isUpdate &&
+    (!username || typeof username !== "string" || username.length < 3)
+  ) {
     throw new Error("Username must be a string with at least 3 characters");
   }
 
-  if (!password && (typeof password !== "string" || password.length < 8)) {
+  // Validate password
+  if (
+    !isUpdate &&
+    (!password || typeof password !== "string" || password.length < 8)
+  ) {
     throw new Error("Password must be a string with at least 8 characters");
   }
 
-  if (!role || !["admin", "customer", "manager"].includes(role)) {
+  // Validate role
+  if (
+    !isUpdate &&
+    (!role || !["admin", "customer", "manager"].includes(role))
+  ) {
     throw new Error("Invalid role specified");
   }
 
-  if (!email || !/\S+@\S+\.\S+/.test(email)) {
+  // Validate email
+  if (!isUpdate && (!email || !/\S+@\S+\.\S+/.test(email))) {
     throw new Error("Invalid email format");
   }
 
+  // Validate phone number
   if (phoneNumber && !/^\+?\d{10,15}$/.test(phoneNumber)) {
     throw new Error("Invalid phone number format");
   }
 
+  // Validate role attributes 
   if (roleAttributes && typeof roleAttributes !== "object") {
     throw new Error("Role attributes must be an object");
   }
 
+  // Validate attributes 
   if (attributes && typeof attributes !== "object") {
     throw new Error("Attributes must be an object");
   }
@@ -43,6 +61,7 @@ const validateUserInput = (userData) => {
   return true;
 };
 
+// Create a new user
 exports.createUser = async (req, res) => {
   const {
     username,
@@ -55,10 +74,7 @@ exports.createUser = async (req, res) => {
   } = req.body;
 
   try {
-    // Validate input
     validateUserInput(req.body);
-
-    // Hash the password before storing it
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Insert the new user into the database
@@ -85,84 +101,109 @@ exports.createUser = async (req, res) => {
 
     if (error) {
       if (error.code === "23505") {
+        logger.warn(`User creation failed: Username or email already exists`);
         return res
           .status(409)
           .json({ error: "Username or email already exists" });
       }
-      console.error("Error creating user:", error);
-      return res.status(400).json({
-        error: error.message,
-        details: error.details,
-        code: error.code,
-      });
+
+      logger.error("Error creating user:", error.message);
+      return res.status(400).json({ error: error.message });
     }
 
     if (!data || data.length === 0) {
+      logger.error("No data returned after user creation");
       return res
         .status(400)
         .json({ error: "No data returned after user creation" });
     }
+
+    await auditService.logUserAction("create", data[0]);
 
     const userResponse = data[0];
     delete userResponse.password;
 
     res.status(201).json({ message: "User created!", user: userResponse });
   } catch (err) {
-    console.error("Unexpected error:", err);
-    res.status(500).json({
-      error: err.message || "Something went wrong",
-      details: process.env.NODE_ENV === "development" ? err.stack : undefined,
-    });
+    logger.error("Unexpected error during user creation:", err.message);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 
 exports.updateUser = async (req, res) => {
   const { userID } = req.params;
-  const { username, password, role, attributes, email } = req.body;
+  const {
+    username,
+    password,
+    role,
+    email,
+    phoneNumber,
+    roleAttributes,
+    attributes,
+    mfaEnabled,
+    accountLocked,
+    failedLoginAttempts,
+  } = req.body;
 
   try {
     if (!userID) {
       return res.status(400).json({ error: "UserID is required" });
     }
+    validateUserInput(req.body, true);
 
-    // Validate input except password (optional for updates)
-    validateUserInput({
-      username: username || "dummy",
-      password: password ? "dummy" : undefined,
-      role: role || "customer",
-      attributes: attributes || {},
-      email: email || "dummy@email.com",
-    });
-
-    let updateData = { username, role, attributes };
+    // Prepare update data
+    const updateData = {
+      username,
+      role,
+      email,
+      phonenumber: phoneNumber,
+      roleattributes: roleAttributes,
+      attributes,
+      mfaenabled: mfaEnabled,
+      accountlocked: accountLocked,
+      failedloginattempts: failedLoginAttempts,
+    };
 
     // Hash the password if it's being updated
     if (password) {
       updateData.password = await bcrypt.hash(password, 10);
     }
 
+    // Remove undefined fields from updateData
+    Object.keys(updateData).forEach(
+      (key) => updateData[key] === undefined && delete updateData[key]
+    );
+
+    // Update the user in the database
     const { data, error } = await supabase
       .from("users")
       .update(updateData)
       .eq("userid", userID)
-      .select("username,password,email,role,attributes");
+      .select(
+        "userid,username,email,role,attributes,mfaenabled,accountlocked,failedloginattempts"
+      );
 
     if (error) {
-      console.error("Error updating user:", error);
+      logger.error("Error updating user:", error.message);
       return res.status(400).json({ error: error.message });
     }
 
     if (!data || data.length === 0) {
+      logger.error(`User with ID ${userID} not found`);
       return res.status(404).json({ error: "User not found" });
     }
 
+    // Log the user update
+    await auditService.logUserAction("update", data[0]);
+
     res.status(200).json({ message: "User updated!", user: data[0] });
   } catch (err) {
-    console.error("Unexpected error:", err);
-    res.status(500).json({ error: err.message || "Something went wrong" });
+    logger.error("Unexpected error during user update:", err.message);
+    res.status(500).json({ error: err.message || "Internal server error" });
   }
 };
 
+// Delete a user
 exports.deleteUser = async (req, res) => {
   const { userID } = req.params;
 
@@ -171,23 +212,40 @@ exports.deleteUser = async (req, res) => {
       return res.status(400).json({ error: "UserID is required" });
     }
 
+    // Check if the user exists
+    const { data: existingUser } = await supabase
+      .from("users")
+      .select("userid")
+      .eq("userid", userID)
+      .single();
+
+    if (!existingUser) {
+      logger.error(`User with ID ${userID} not found`);
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Delete the user
     const { error } = await supabase
       .from("users")
       .delete()
       .eq("userid", userID);
 
     if (error) {
-      console.error("Error deleting user:", error);
+      logger.error("Error deleting user:", error.message);
       return res.status(400).json({ error: error.message });
     }
 
+    // Log the user deletion
+    await auditService.logUserAction("delete", existingUser);
+
     res.status(200).json({ message: "User deleted!" });
   } catch (err) {
-    console.error("Unexpected error:", err);
-    res.status(500).json({ error: err.message || "Something went wrong" });
+    logger.error("Unexpected error during user deletion:", err.message);
+    res.status(500).json({ error: err.message || "Internal server error" });
   }
 };
 
+// List all users
 exports.listUsers = async (req, res) => {
   try {
     const { data, error } = await supabase
@@ -197,17 +255,18 @@ exports.listUsers = async (req, res) => {
       );
 
     if (error) {
-      console.error("Error fetching users:", error);
+      logger.error("Error fetching users:", error.message);
       return res.status(400).json({ error: error.message });
     }
 
     res.status(200).json(data);
   } catch (err) {
-    console.error("Unexpected error:", err);
-    res.status(500).json({ error: err.message || "Something went wrong" });
+    logger.error("Unexpected error during user listing:", err.message);
+    res.status(500).json({ error: err.message || "Internal server error" });
   }
 };
 
+// Get a specific user by ID
 exports.getUser = async (req, res) => {
   const { userID } = req.params;
 
@@ -225,17 +284,18 @@ exports.getUser = async (req, res) => {
       .single();
 
     if (error) {
-      console.error("Error fetching user:", error);
+      logger.error("Error fetching user:", error.message);
       return res.status(400).json({ error: error.message });
     }
 
     if (!data) {
+      logger.error(`User with ID ${userID} not found`);
       return res.status(404).json({ error: "User not found" });
     }
 
     res.status(200).json(data);
   } catch (err) {
-    console.error("Unexpected error:", err);
-    res.status(500).json({ error: err.message || "Something went wrong" });
+    logger.error("Unexpected error during user fetch:", err.message);
+    res.status(500).json({ error: err.message || "Internal server error" });
   }
 };

@@ -1,52 +1,59 @@
 const supabase = require("../config/supabase");
 const policyEngine = require("../services/policyEngine");
+const logger = require("../config/logger");
+const auditService = require("../services/auditService");
 
+// Fetch user data from Supabase
 async function fetchUserData(userID) {
-  return await supabase
+  const { data, error } = await supabase
     .from("users")
     .select("role, attributes")
     .eq("userid", userID)
     .single();
+
+  if (error) {
+    logger.error(
+      `Error fetching user data for userID ${userID}:`,
+      error.message
+    );
+    throw new Error(`Failed to fetch user data: ${error.message}`);
+  }
+
+  return data;
 }
 
+// Fetch and filter policies based on user role
 async function fetchAndFilterPolicies(userRole) {
   const { data: policies, error } = await supabase.from("policies").select("*");
 
   if (error) {
-    return { policies: null, error };
+    logger.error(
+      `Error fetching policies for role ${userRole}:`,
+      error.message
+    );
+    throw new Error(`Failed to fetch policies: ${error.message}`);
   }
 
-  // Filter policies to only those applicable to the user's role
+  // Filter policies applicable to the user's role
   const applicablePolicies = policies.filter((policy) =>
     policy.rules.some((rule) => rule.role === userRole)
   );
 
-  return { policies: applicablePolicies, error: null };
+  return applicablePolicies;
 }
 
+// Evaluate policy compliance
 exports.evaluatePolicy = async (req, res) => {
   const { userID, action, resource, context } = req.body;
 
   try {
-    // Retrieve user data including role and attributes
-    const { data: userData, error: userError } = await fetchUserData(userID);
+    // Fetch user data
+    const userData = await fetchUserData(userID);
 
-    if (userError) {
-      console.error("Error fetching user:", userError.message);
-      return res.status(400).json({ error: userError.message });
-    }
+    // Fetch applicable policies
+    const policies = await fetchAndFilterPolicies(userData.role);
 
-    // Get all relevant policies for the user's role
-    const { policies, error: policyError } = await fetchAndFilterPolicies(
-      userData.role
-    );
-
-    if (policyError) {
-      console.error("Error fetching policies:", policyError.message);
-      return res.status(400).json({ error: policyError.message });
-    }
-
-    // Evaluate policy compliance using the policy engine
+    // Evaluate policy
     const result = await policyEngine.evaluate(
       userData,
       action,
@@ -55,46 +62,58 @@ exports.evaluatePolicy = async (req, res) => {
       policies
     );
 
-    // Log denied access attempts for auditing
+    // Log the access request and result
+    await auditService.logAccessRequest(
+      userID,
+      action,
+      resource,
+      context,
+      result
+    );
+
     if (!result.access) {
-      console.error("Policy denied:", result.reason);
+      logger.warn(`Policy denied for user ${userID}: ${result.reason}`);
     }
 
     res.status(200).json(result);
   } catch (err) {
-    console.error("Unexpected error during policy evaluation:", err.message);
-    res.status(500).json({ error: "Something went wrong" });
+    logger.error(
+      `Unexpected error during policy evaluation for user ${userID}:`,
+      err.message
+    );
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 
+// Check access to a resource
 exports.checkAccess = async (req, res) => {
   const { userID, resource } = req.body;
 
   try {
-    // Retrieve user data including role and attributes
-    const { data: userData, error: userError } = await fetchUserData(userID);
+    // Fetch user data
+    const userData = await fetchUserData(userID);
 
-    if (userError) {
-      console.error("Error fetching user:", userError.message);
-      return res.status(400).json({ error: userError.message });
-    }
+    // Fetch applicable policies
+    const policies = await fetchAndFilterPolicies(userData.role);
 
-    // Get all relevant policies for the user's role
-    const { policies, error: policyError } = await fetchAndFilterPolicies(
-      userData.role
-    );
-
-    if (policyError) {
-      console.error("Error fetching policies:", policyError.message);
-      return res.status(400).json({ error: policyError.message });
-    }
-
-    // Determine access using the policy engine
+    // Check access
     const result = await policyEngine.checkAccess(userData, resource, policies);
+
+    // Log the access request and result
+    await auditService.logAccessRequest(
+      userID,
+      "checkAccess",
+      resource,
+      {},
+      result
+    );
 
     res.status(200).json(result);
   } catch (err) {
-    console.error("Unexpected error during access check:", err.message);
-    res.status(500).json({ error: "Something went wrong" });
+    logger.error(
+      `Unexpected error during access check for user ${userID}:`,
+      err.message
+    );
+    res.status(500).json({ error: "Internal server error" });
   }
 };

@@ -1,7 +1,10 @@
+const logger = require("../config/logger");
+
+// Check if conditions are met
 const checkConditions = (conditions, context) => {
-  // Check if all keys in conditions exist in context
   for (const key in conditions) {
     if (!(key in context)) {
+      logger.debug(`Condition key '${key}' not found in context`);
       return false;
     }
 
@@ -10,11 +13,12 @@ const checkConditions = (conditions, context) => {
       const contextTime = context[key];
 
       if (!contextTime || contextTime.start < start || contextTime.end > end) {
+        logger.debug(
+          `Time condition failed: ${JSON.stringify(conditions[key])}`
+        );
         return false;
       }
-    }
-    // If the value is an object, recursively check nested properties
-    else if (
+    } else if (
       typeof conditions[key] === "object" &&
       !Array.isArray(conditions[key])
     ) {
@@ -22,6 +26,7 @@ const checkConditions = (conditions, context) => {
         return false;
       }
     } else if (conditions[key] !== context[key]) {
+      logger.debug(`Condition failed: ${key} = ${conditions[key]}`);
       return false;
     }
   }
@@ -29,8 +34,12 @@ const checkConditions = (conditions, context) => {
   return true;
 };
 
+// Evaluate policy compliance
 exports.evaluate = (userData, action, resource, context, policies) => {
-  // Iterate through policies and evaluate rules
+  logger.info(
+    `Evaluating policy for user ${userData.userid}, action ${action}, resource ${resource}`
+  );
+
   for (const policy of policies) {
     for (const rule of policy.rules) {
       if (
@@ -39,17 +48,26 @@ exports.evaluate = (userData, action, resource, context, policies) => {
         rule.resources.includes(resource) &&
         (!rule.conditions || checkConditions(rule.conditions, context))
       ) {
+        logger.info(
+          `Policy matched: ${policy.policyname}, Rule: ${JSON.stringify(rule)}`
+        );
         return { access: rule.effect === "allow", reason: "Policy matched" };
       }
     }
   }
 
-  // Default deny if no policy matches
+  logger.warn(
+    `No matching policy found for user ${userData.userid}, action ${action}, resource ${resource}`
+  );
   return { access: false, reason: "No matching policy found" };
 };
 
+// Check access to a resource
 exports.checkAccess = (userData, resource, policies) => {
-  // Iterate through policies and check if the user has access to the resource
+  logger.info(
+    `Checking access for user ${userData.userid}, resource ${resource}`
+  );
+
   for (const policy of policies) {
     for (const rule of policy.rules) {
       if (
@@ -57,11 +75,18 @@ exports.checkAccess = (userData, resource, policies) => {
         rule.resources.includes(resource) &&
         rule.effect === "allow"
       ) {
+        logger.info(
+          `Access granted by policy: ${
+            policy.policyname
+          }, Rule: ${JSON.stringify(rule)}`
+        );
         return { access: true, reason: "Access granted by policy" };
       }
     }
   }
 
-  // Default deny if no policy allows access
+  logger.warn(
+    `No policy allows access for user ${userData.userid}, resource ${resource}`
+  );
   return { access: false, reason: "No policy allows access" };
 };
