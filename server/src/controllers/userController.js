@@ -2,6 +2,7 @@ const supabase = require("../config/supabase");
 const bcrypt = require("bcrypt");
 const logger = require("../config/logger");
 const auditService = require("../services/auditService");
+const setToken = require("../config/jwt");
 
 const validateUserInput = (userData, isUpdate = false) => {
   const {
@@ -123,6 +124,8 @@ exports.createUser = async (req, res) => {
     const userResponse = data[0];
     delete userResponse.password;
 
+    //Setting JWT token to cookie
+    setToken(userResponse, res);
     res.status(201).json({ message: "User created!", user: userResponse });
   } catch (err) {
     logger.error("Unexpected error during user creation:", err.message);
@@ -297,5 +300,67 @@ exports.getUser = async (req, res) => {
   } catch (err) {
     logger.error("Unexpected error during user fetch:", err.message);
     res.status(500).json({ error: err.message || "Internal server error" });
+  }
+};
+
+//User Login
+exports.login = async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ message: "Please provide email and password" });
+  }
+
+  try {
+    const { data: user, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", email)
+      .single();
+
+    if (error || !user) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    setToken(user, res);
+
+    return res.status(200).json({
+      message: "Login successful",
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (err) {
+    logger.error("Error during login:", err.message);
+    return res.status(500).json({ error: err.message || "Internal Server Error" });
+  }
+};
+
+//User logout
+exports.logout = async (req, res, next) => {
+try{
+  res.clearCookie('token');
+  res.status(200).json({message: "Logged Out"});
+} catch (err) {
+  logger.error("Error during logout:", err.message);
+  return res.status(500).json({ error: err.message || "Internal Server Error" });
+}
+
+};
+
+exports.checkUser = async (req, res, next) => {
+  try {
+    res.json({ user: req.user });
+  } catch (err) {
+    logger.error("Error during user check:", err.message);
+    return res.status(500).json({ error: err.message || "Internal Server Error" });
   }
 };

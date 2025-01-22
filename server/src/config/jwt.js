@@ -1,7 +1,6 @@
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
 const logger = require("./logger");
-
 dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -13,23 +12,28 @@ if (!JWT_SECRET) {
 }
 
 // Generate a JWT token
+const jwt = require("jsonwebtoken");
+
 const generateToken = (payload) => {
   try {
     return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
   } catch (err) {
-    logger.error("Error generating JWT token:", err.message);
+    console.error("Error generating JWT token:", err.message);
     throw new Error("Failed to generate token");
   }
 };
 
-// Verify a JWT token
-const verifyToken = (token) => {
-  try {
-    return jwt.verify(token, JWT_SECRET);
-  } catch (err) {
-    logger.error("Error verifying JWT token:", err.message);
-    throw new Error("Invalid or expired token");
-  }
+const setToken = (user, res) => {
+  const token = generateToken({ id: user.id });
+
+  const isProduction = process.env.NODE_ENV === "PRODUCTION";
+
+  res.cookie("token", token, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "strict" : "lax",
+    expires: new Date(Date.now() + parseInt(process.env.COOKIE_EXPIRE) * 24 * 60 * 60 * 1000),
+  });
 };
 
-module.exports = { generateToken, verifyToken };
+module.exports = setToken;
