@@ -1,6 +1,7 @@
 const express = require("express");
 const userController = require("../controllers/userController");
 const logger = require("../config/logger");
+const { isAuthenticatedUser, authorizeRoles } = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -11,11 +12,14 @@ router.use((req, res, next) => {
 });
 
 // Routes
-router.get("/", userController.listUsers);
+router.get("/", isAuthenticatedUser, authorizeRoles("admin"), userController.listUsers); //change the role accordingly can be added multiple roles ("user", "admin")
 router.get("/:userID", userController.getUser);
 router.post("/", userController.createUser);
 router.put("/:userID", userController.updateUser);
 router.delete("/:userID", userController.deleteUser);
+router.post("/login", userController.login)
+router.get("/signout", userController.logout);
+router.get("/check", isAuthenticatedUser, userController.checkUser);
 
 // Error handling middleware
 router.use((err, req, res, next) => {

@@ -4,9 +4,14 @@ const userRoutes = require("./routes/userRoutes");
 const policyRoutes = require("./routes/policyRoutes");
 const accessRoutes = require("./routes/accessRoutes");
 const logger = require("./config/logger");
+const cors = require('cors');
 
 const app = express();
 app.use(bodyParser.json());
+app.use(cors({
+  origin: "http://localhost:3000", 
+  credentials: true,
+}));
 
 // Log incoming requests
 app.use((req, res, next) => {
