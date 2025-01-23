@@ -12,14 +12,17 @@ router.use((req, res, next) => {
 });
 
 // Routes
-router.get("/", isAuthenticatedUser, authorizeRoles("admin"), userController.listUsers); //change the role accordingly can be added multiple roles ("user", "admin")
+router.post("/login", userController.login);
+router.get("/logout", isAuthenticatedUser, userController.logout);
+router.get("/checkuser", isAuthenticatedUser, userController.checkUser);
+
+router.get("/", isAuthenticatedUser, authorizeRoles("customer"), userController.listUsers);
 router.get("/:userID", userController.getUser);
+
 router.post("/", userController.createUser);
 router.put("/:userID", userController.updateUser);
+
 router.delete("/:userID", userController.deleteUser);
-router.post("/login", userController.login)
-router.get("/signout", userController.logout);
-router.get("/check", isAuthenticatedUser, userController.checkUser);
 
 // Error handling middleware
 router.use((err, req, res, next) => {

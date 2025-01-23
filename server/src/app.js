@@ -5,6 +5,7 @@ const policyRoutes = require("./routes/policyRoutes");
 const accessRoutes = require("./routes/accessRoutes");
 const logger = require("./config/logger");
 const cors = require('cors');
+const cookieParser = require("cookie-parser")
 
 const app = express();
 app.use(bodyParser.json());
@@ -18,6 +19,8 @@ app.use((req, res, next) => {
   logger.info(`${req.method} ${req.url}`);
   next();
 });
+
+app.use(cookieParser());
 
 // Routes
 app.use("/api/users", userRoutes);

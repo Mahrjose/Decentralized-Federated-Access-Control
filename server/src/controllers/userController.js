@@ -2,7 +2,7 @@ const supabase = require("../config/supabase");
 const bcrypt = require("bcrypt");
 const logger = require("../config/logger");
 const auditService = require("../services/auditService");
-const setToken = require("../config/jwt");
+const { setToken, clearToken } = require("../config/jwt");
 
 const validateUserInput = (userData, isUpdate = false) => {
   const {
@@ -49,12 +49,12 @@ const validateUserInput = (userData, isUpdate = false) => {
     throw new Error("Invalid phone number format");
   }
 
-  // Validate role attributes 
+  // Validate role attributes
   if (roleAttributes && typeof roleAttributes !== "object") {
     throw new Error("Role attributes must be an object");
   }
 
-  // Validate attributes 
+  // Validate attributes
   if (attributes && typeof attributes !== "object") {
     throw new Error("Attributes must be an object");
   }
@@ -308,7 +308,9 @@ exports.login = async (req, res) => {
   const { email, password } = req.body;
 
   if (!email || !password) {
-    return res.status(400).json({ message: "Please provide email and password" });
+    return res
+      .status(400)
+      .json({ message: "Please provide email and password" });
   }
 
   try {
@@ -340,27 +342,36 @@ exports.login = async (req, res) => {
     });
   } catch (err) {
     logger.error("Error during login:", err.message);
-    return res.status(500).json({ error: err.message || "Internal Server Error" });
+    return res
+      .status(500)
+      .json({ error: err.message || "Internal Server Error" });
   }
 };
 
 //User logout
 exports.logout = async (req, res, next) => {
-try{
-  res.clearCookie('token');
-  res.status(200).json({message: "Logged Out"});
-} catch (err) {
-  logger.error("Error during logout:", err.message);
-  return res.status(500).json({ error: err.message || "Internal Server Error" });
-}
-
+  try {
+    clearToken(res);
+    res.status(200).json({ message: "Logged Out" });
+  } catch (err) {
+    logger.error("Error during logout:", err.message);
+    return res
+      .status(500)
+      .json({ error: err.message || "Internal Server Error" });
+  }
 };
 
 exports.checkUser = async (req, res, next) => {
   try {
+    if (!req.user) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+    logger.info("CheckUser endpoint called: ", req.user);
     res.json({ user: req.user });
   } catch (err) {
     logger.error("Error during user check:", err.message);
-    return res.status(500).json({ error: err.message || "Internal Server Error" });
+    return res
+      .status(500)
+      .json({ error: err.message || "Internal Server Error" });
   }
 };
