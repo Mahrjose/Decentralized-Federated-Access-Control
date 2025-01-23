@@ -1,56 +1,43 @@
 const winston = require("winston");
 const dotenv = require("dotenv");
-const { format } = winston;
-const { combine, timestamp, printf, colorize, errors, splat, json } = format;
 
 dotenv.config();
 
-// Custom console format for pretty-printing
-const consoleFormat = combine(
-  colorize(), // Add colors to the output
-  timestamp({ format: "YYYY-MM-DD HH:mm:ss" }), // Add timestamp
-  printf(({ timestamp, level, message, stack }) => {
-    // Pretty-print JSON objects
-    if (typeof message === "object") {
-      message = JSON.stringify(message, null, 2); // Indent with 2 spaces
-    }
-    // Include stack trace for errors
-    if (stack) {
-      return `${timestamp} [${level}]: ${message}\n${stack}`;
-    }
-    return `${timestamp} [${level}]: ${message}`;
-  })
-);
-
-// File format (structured JSON)
-const fileFormat = combine(
-  timestamp(),
-  errors({ stack: true }),
-  splat(),
-  json() // Log as JSON
-);
-
-// Create a logger instance
 const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || "info", // Default to 'info'
-  transports: [
-    // Log to console (pretty-printed)
-    new winston.transports.Console({
-      format: consoleFormat,
-    }),
-    // Log errors to a file (structured JSON)
-    new winston.transports.File({
-      filename: "logs/error.log",
-      level: "error",
-      format: fileFormat,
-    }),
-    // Log all messages to a file (structured JSON)
-    new winston.transports.File({
-      filename: "logs/combined.log",
-      format: fileFormat,
-    }),
-  ],
+  level: process.env.LOG_LEVEL || "info",
+  format: winston.format.combine(
+    winston.format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
+    winston.format.errors({ stack: true }),
+    winston.format.colorize(),
+    winston.format.printf(
+      ({ timestamp, level, message, stack, ...metadata }) => {
+        let logMessage = `${timestamp} [${level}]: ${message}`;
+
+        // If metadata has additional properties, append them to the log message
+        if (Object.keys(metadata).length > 0) {
+          logMessage += ` ${JSON.stringify(metadata)}`;
+        }
+
+        // If stack trace exists, append it
+        if (stack) {
+          logMessage += `\n${stack}`;
+        }
+
+        return logMessage;
+      }
+    )
+  ),
+  transports: [new winston.transports.Console()],
 });
+
+// Patch the logger to handle multiple arguments
+const originalError = logger.error;
+logger.error = function (...args) {
+  const errorParts = args.map((arg) =>
+    typeof arg === "object" ? JSON.stringify(arg) : arg
+  );
+  originalError.call(logger, errorParts.join(" "));
+};
 
 // Handle uncaught exceptions and promise rejections
 process.on("uncaughtException", (error) => {

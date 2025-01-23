@@ -1,4 +1,3 @@
-const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
 const logger = require("./logger");
 dotenv.config();
@@ -24,7 +23,7 @@ const generateToken = (payload) => {
 };
 
 const setToken = (user, res) => {
-  const token = generateToken({ id: user.id });
+  const token = generateToken({ id: user.userid });
 
   const isProduction = process.env.NODE_ENV === "PRODUCTION";
 
@@ -36,4 +35,14 @@ const setToken = (user, res) => {
   });
 };
 
-module.exports = setToken;
+const clearToken = (res) => {
+  const isProduction = process.env.NODE_ENV === "PRODUCTION";
+
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? "strict" : "lax",
+  });
+};
+
+module.exports = { setToken, clearToken };
