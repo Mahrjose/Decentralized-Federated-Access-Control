@@ -8,8 +8,8 @@ function Navbar() {
     const navigate = useNavigate();
     const location = useLocation();
 
-    const signout = () => {
-        axios.post("/api/users/signout")
+    const logout = () => {
+        axios.get("/api/users/logout")
         .then((response) => {
             navigate('/');
         }).catch(handleAxiosError);
@@ -24,7 +24,7 @@ function Navbar() {
                     <Link to="/#" className="nav-content-link" style={{fontWeight: `${location.pathname === "/about" ? "bold" : ""}`}}>About</Link>
                     <Link to="/#" className="nav-content-link" style={{fontWeight: `${location.pathname === "/contact" ? "bold" : ""}`}}>Contact</Link>
                     <Link to="/#" className="nav-content-link" style={{fontWeight: `${location.pathname === "/notification" ? "bold" : ""}`}}>Notifications</Link>
-                    <button className="nav-content-link" onClick={signout}>Signout</button>
+                    <button className="nav-content-link" onClick={logout}>logout</button>
                 </div>
         </div>
     )
