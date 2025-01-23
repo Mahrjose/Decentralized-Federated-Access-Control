@@ -34,13 +34,22 @@ const checkConditions = (conditions, context) => {
   return true;
 };
 
-// Evaluate policy compliance
+// Evaluate policy compliance with scope hierarchy
 exports.evaluate = (userData, action, resource, context, policies) => {
   logger.info(
     `Evaluating policy for user ${userData.userid}, action ${action}, resource ${resource}`
   );
 
-  for (const policy of policies) {
+  // Sort policies by scope hierarchy: Local > Regional > Global
+  const sortedPolicies = policies.sort((a, b) => {
+    const scopeOrder = { local: 1, regional: 2, global: 3 }; // Ensure lowercase scope names
+    return scopeOrder[a.scope.toLowerCase()] - scopeOrder[b.scope.toLowerCase()];
+  });
+
+  // Track the final decision
+  let finalDecision = { access: false, reason: "No matching policy found" };
+
+  for (const policy of sortedPolicies) {
     for (const rule of policy.rules) {
       if (
         rule.role === userData.role &&
@@ -49,17 +58,27 @@ exports.evaluate = (userData, action, resource, context, policies) => {
         (!rule.conditions || checkConditions(rule.conditions, context))
       ) {
         logger.info(
-          `Policy matched: ${policy.policyname}, Rule: ${JSON.stringify(rule)}`
+          `Policy matched: ${policy.policyname} (Scope: ${
+            policy.scope
+          }), Rule: ${JSON.stringify(rule)}`
         );
-        return { access: rule.effect === "allow", reason: "Policy matched" };
+
+        // Update the final decision based on the current policy
+        finalDecision = {
+          access: rule.effect === "allow",
+          reason: `Policy matched: ${policy.policyname} (Scope: ${policy.scope})`,
+        };
+
+        // If a local policy denies access, stop further evaluation
+        if (policy.scope.toLowerCase() === "local" && rule.effect === "disallow") {
+          return finalDecision;
+        }
       }
     }
   }
 
-  logger.warn(
-    `No matching policy found for user ${userData.userid}, action ${action}, resource ${resource}`
-  );
-  return { access: false, reason: "No matching policy found" };
+  // Return the final decision after evaluating all policies
+  return finalDecision;
 };
 
 // Check access to a resource
@@ -68,7 +87,13 @@ exports.checkAccess = (userData, resource, policies) => {
     `Checking access for user ${userData.userid}, resource ${resource}`
   );
 
-  for (const policy of policies) {
+  // Sort policies by scope hierarchy: Local > Regional > Global
+  const sortedPolicies = policies.sort((a, b) => {
+    const scopeOrder = { Local: 1, Regional: 2, Global: 3 };
+    return scopeOrder[a.scope] - scopeOrder[b.scope];
+  });
+
+  for (const policy of sortedPolicies) {
     for (const rule of policy.rules) {
       if (
         rule.role === userData.role &&
@@ -76,11 +101,14 @@ exports.checkAccess = (userData, resource, policies) => {
         rule.effect === "allow"
       ) {
         logger.info(
-          `Access granted by policy: ${
-            policy.policyname
-          }, Rule: ${JSON.stringify(rule)}`
+          `Access granted by policy: ${policy.policyname} (Scope: ${
+            policy.scope
+          }), Rule: ${JSON.stringify(rule)}`
         );
-        return { access: true, reason: "Access granted by policy" };
+        return {
+          access: true,
+          reason: `Access granted by policy: ${policy.policyname} (Scope: ${policy.scope})`,
+        };
       }
     }
   }

@@ -22,22 +22,29 @@ async function fetchUserData(userID) {
   return data;
 }
 
-// Fetch and filter policies based on user role
-async function fetchAndFilterPolicies(userRole) {
+// Fetch policies based on user location and scope
+async function fetchPoliciesByScope(userRole, location) {
   const { data: policies, error } = await supabase.from("policies").select("*");
 
   if (error) {
-    logger.error(
-      `Error fetching policies for role ${userRole}:`,
-      error.message
-    );
+    logger.error(`Error fetching policies:`, error.message);
     throw new Error(`Failed to fetch policies: ${error.message}`);
   }
 
-  // Filter policies applicable to the user's role
-  const applicablePolicies = policies.filter((policy) =>
-    policy.rules.some((rule) => rule.role === userRole)
-  );
+  // Filter policies based on scope, location, and user role
+  const applicablePolicies = policies.filter((policy) => {
+    // Check if the policy applies to the user's role
+    const roleMatch = policy.rules.some((rule) => rule.role === userRole);
+
+    // Check if the policy applies to the user's location and scope
+    const scopeMatch =
+      policy.scope === "global" ||
+      (policy.scope === "regional" && policy.region === location.region) ||
+      (policy.scope === "local" && policy.branch === location.branch);
+
+    // Only include policies that match both role and scope
+    return roleMatch && scopeMatch;
+  });
 
   return applicablePolicies;
 }
@@ -50,8 +57,8 @@ exports.evaluatePolicy = async (req, res) => {
     // Fetch user data
     const userData = await fetchUserData(userID);
 
-    // Fetch applicable policies
-    const policies = await fetchAndFilterPolicies(userData.role);
+    // Fetch applicable policies based on scope and location
+    const policies = await fetchPoliciesByScope(userData.role, context.location);
 
     // Evaluate policy
     const result = await policyEngine.evaluate(
@@ -71,10 +78,6 @@ exports.evaluatePolicy = async (req, res) => {
       result
     );
 
-    if (!result.access) {
-      logger.warn(`Policy denied for user ${userID}: ${result.reason}`);
-    }
-
     res.status(200).json(result);
   } catch (err) {
     logger.error(
@@ -87,14 +90,14 @@ exports.evaluatePolicy = async (req, res) => {
 
 // Check access to a resource
 exports.checkAccess = async (req, res) => {
-  const { userID, resource } = req.body;
+  const { userID, resource, context } = req.body;
 
   try {
     // Fetch user data
     const userData = await fetchUserData(userID);
 
-    // Fetch applicable policies
-    const policies = await fetchAndFilterPolicies(userData.role);
+    // Fetch applicable policies based on scope and location
+    const policies = await fetchPoliciesByScope(userData.role, context.location);
 
     // Check access
     const result = await policyEngine.checkAccess(userData, resource, policies);
@@ -104,7 +107,7 @@ exports.checkAccess = async (req, res) => {
       userID,
       "checkAccess",
       resource,
-      {},
+      context,
       result
     );
 

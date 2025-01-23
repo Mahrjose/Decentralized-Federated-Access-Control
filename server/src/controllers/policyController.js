@@ -4,7 +4,7 @@ const auditService = require("../services/auditService");
 
 // Validate policy input
 const validatePolicyInput = (policyData) => {
-  const { policyName, description, rules } = policyData;
+  const { policyName, description, rules, scope } = policyData;
 
   if (!policyName || typeof policyName !== "string" || policyName.length < 3) {
     throw new Error("Policy name must be a string with at least 3 characters");
@@ -14,12 +14,16 @@ const validatePolicyInput = (policyData) => {
     throw new Error("Description must be a string");
   }
 
+  if (!scope || !["global", "regional", "local"].includes(scope)) {
+    throw new Error("Scope must be one of: Global, Regional, Local");
+  }
+
   return true;
 };
 
 // Create a new policy
 exports.createPolicy = async (req, res) => {
-  const { policyName, description, rules } = req.body;
+  const { policyName, description, rules, scope } = req.body;
 
   try {
     // Validate input
@@ -28,7 +32,7 @@ exports.createPolicy = async (req, res) => {
     // Insert the new policy into the database
     const { data, error } = await supabase
       .from("policies")
-      .insert([{ policyname: policyName, description, rules }])
+      .insert([{ policyname: policyName, description, rules, scope }])
       .select();
 
     if (error) {
@@ -66,18 +70,17 @@ exports.createPolicy = async (req, res) => {
 // Update an existing policy
 exports.updatePolicy = async (req, res) => {
   const { policyID } = req.params;
-  const { policyName, description, rules } = req.body;
+  const { policyName, description, rules, scope } = req.body;
 
   try {
     if (!policyID) {
       return res.status(400).json({ error: "PolicyID is required" });
     }
 
-    // Validate input
-    validatePolicyInput({ policyName, description, rules });
+    validatePolicyInput({ policyName, description, rules, scope });
 
     // Update the policy in the database
-    const updateData = { policyname: policyName, description, rules };
+    const updateData = { policyname: policyName, description, rules, scope };
     const { data, error } = await supabase
       .from("policies")
       .update(updateData)
