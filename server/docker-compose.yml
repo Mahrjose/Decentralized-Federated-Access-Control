@@ -1,0 +1,151 @@
+services:
+  # HQ Node (Dhaka, BD)
+  hq:
+    build: .
+    container_name: hq
+    environment:
+      NODE_TYPE: global
+      NODE_ID: hq
+      LOCATION: Dhaka, BD
+      PORT: 5000
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_KEY: ${SUPABASE_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      COOKIE_EXPIRE: ${COOKIE_EXPIRE}
+      NODE_ENV: ${NODE_ENV}
+    ports:
+      - "5000:5000"
+    networks:
+      - bank-network
+
+  # Regional Node (Asia - Tokyo, JP)
+  regional-asia:
+    build: .
+    container_name: regional-asia
+    environment:
+      NODE_TYPE: regional
+      NODE_ID: regional-asia
+      REGION: Asia
+      LOCATION: Tokyo, JP
+      PORT: 5000
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_KEY: ${SUPABASE_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      COOKIE_EXPIRE: ${COOKIE_EXPIRE}
+      NODE_ENV: ${NODE_ENV}
+    ports:
+      - "5001:5000"
+    networks:
+      - bank-network
+
+  # Regional Node (Europe - Paris, FR)
+  regional-europe:
+    build: .
+    container_name: regional-europe
+    environment:
+      NODE_TYPE: regional
+      NODE_ID: regional-europe
+      REGION: Europe
+      LOCATION: Paris, FR
+      PORT: 5000
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_KEY: ${SUPABASE_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      COOKIE_EXPIRE: ${COOKIE_EXPIRE}
+      NODE_ENV: ${NODE_ENV}
+    ports:
+      - "5002:5000"
+    networks:
+      - bank-network
+
+  # Local Node (Asia - Istanbul, TR)
+  local-istanbul:
+    build: .
+    container_name: local-istanbul
+    environment:
+      NODE_TYPE: local
+      NODE_ID: local-istanbul
+      REGION: Asia
+      LOCATION: Istanbul, TR
+      PORT: 5000
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_KEY: ${SUPABASE_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      COOKIE_EXPIRE: ${COOKIE_EXPIRE}
+      NODE_ENV: ${NODE_ENV}
+    ports:
+      - "5003:5000"
+    networks:
+      - bank-network
+
+  # Local Node (Asia - Delhi, IN)
+  local-delhi:
+    build: .
+    container_name: local-delhi
+    environment:
+      NODE_TYPE: local
+      NODE_ID: local-delhi
+      REGION: Asia
+      LOCATION: Delhi, IN
+      PORT: 5000
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_KEY: ${SUPABASE_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      COOKIE_EXPIRE: ${COOKIE_EXPIRE}
+      NODE_ENV: ${NODE_ENV}
+    ports:
+      - "5004:5000"
+    networks:
+      - bank-network
+
+  # Local Node (Europe - Berlin, DE)
+  local-berlin:
+    build: .
+    container_name: local-berlin
+    environment:
+      NODE_TYPE: local
+      NODE_ID: local-berlin
+      REGION: Europe
+      LOCATION: Berlin, DE
+      PORT: 5000
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_KEY: ${SUPABASE_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      COOKIE_EXPIRE: ${COOKIE_EXPIRE}
+      NODE_ENV: ${NODE_ENV}
+    ports:
+      - "5005:5000"
+    networks:
+      - bank-network
+
+  # Local Node (Europe - London, UK)
+  local-london:
+    build: .
+    container_name: local-london
+    environment:
+      NODE_TYPE: local
+      NODE_ID: local-london
+      REGION: Europe
+      LOCATION: London, UK
+      PORT: 5000
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_KEY: ${SUPABASE_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      COOKIE_EXPIRE: ${COOKIE_EXPIRE}
+      NODE_ENV: ${NODE_ENV}
+    ports:
+      - "5006:5000"
+    networks:
+      - bank-network
+
+# Docker Networks
+networks:
+  bank-network:
+    driver: bridge
