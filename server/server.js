@@ -5,6 +5,6 @@ dotenv.config();
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  logger.info(`Server running at http://localhost:${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+  logger.info(`Server running at http://0.0.0.0:${PORT}`);
 });
