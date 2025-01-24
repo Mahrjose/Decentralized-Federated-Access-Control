@@ -16,6 +16,11 @@ router.post("/", policyController.createPolicy);
 router.put("/:policyID", policyController.updatePolicy);
 router.delete("/:policyID", policyController.deletePolicy);
 
+router.post("/propagate/global", policyController.propagateGlobalPolicies);
+router.post("/propagate/regional/:region", policyController.propagateRegionalPolicies);
+router.get("/local/:branch", policyController.fetchLocalPolicies)
+
+
 // Error handling middleware
 router.use((err, req, res, next) => {
   logger.error(`Error in policyRoutes: ${err.message}`);

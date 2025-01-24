@@ -1,6 +1,7 @@
 const supabase = require("../config/supabase");
 const logger = require("../config/logger");
 const auditService = require("../services/auditService");
+const propagationService = require("../services/propagationService");
 
 // Validate policy input
 const validatePolicyInput = (policyData) => {
@@ -207,6 +208,51 @@ exports.getPolicy = async (req, res) => {
     res.status(200).json(data);
   } catch (err) {
     logger.error("Unexpected error during policy fetch:", err.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+exports.propagateGlobalPolicies = async (req, res) => {
+  try {
+    const globalPolicies = await propagationService.propagateGlobalPolicies();
+    res.status(200).json({
+      message: "Global policies propagated successfully",
+      policies: globalPolicies,
+    });
+  } catch (err) {
+    logger.error("Error propagating global policies:", err.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// Propagate regional policies
+exports.propagateRegionalPolicies = async (req, res) => {
+  const { region } = req.params;
+
+  try {
+    const regionalPolicies = await propagationService.propagateRegionalPolicies(region);
+    res.status(200).json({
+      message: `Regional policies for ${region} propagated successfully`,
+      policies: regionalPolicies,
+    });
+  } catch (err) {
+    logger.error("Error propagating regional policies:", err.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+// Fetch local policies (no propagation needed)
+exports.fetchLocalPolicies = async (req, res) => {
+  const { branch } = req.params;
+
+  try {
+    const localPolicies = await propagationService.propagateLocalPolicies(branch);
+    res.status(200).json({
+      message: `Local policies for ${branch} fetched successfully`,
+      policies: localPolicies,
+    });
+  } catch (err) {
+    logger.error("Error fetching local policies:", err.message);
     res.status(500).json({ error: "Internal server error" });
   }
 };
