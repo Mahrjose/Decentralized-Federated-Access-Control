@@ -212,31 +212,47 @@ exports.getPolicy = async (req, res) => {
   }
 };
 
+// Propagate global policies to regional nodes
 exports.propagateGlobalPolicies = async (req, res) => {
+  const { isFetchReq } = req.body;
   try {
-    const globalPolicies = await propagationService.propagateGlobalPolicies();
-    res.status(200).json({
-      message: "Global policies propagated successfully",
-      policies: globalPolicies,
-    });
+    if (isFetchReq) {
+      const globalPolicies = await propagationService.fetchGlobalPolicies();
+      res.status(200).json({
+        message: "Global policies fetched successfully",
+        policies: globalPolicies,
+      });
+    } else {
+      // Fetch global policies and propagate them to regional nodes
+      await propagationService.propagateGlobalPolicies();
+      res
+        .status(200)
+        .json({ message: "Global policies propagated successfully" });
+    }
   } catch (err) {
-    logger.error("Error propagating global policies:", err.message);
+    logger.error("Error in propagateGlobalPolicies:", err.message);
     res.status(500).json({ error: "Internal server error" });
   }
 };
 
-// Propagate regional policies
-exports.propagateRegionalPolicies = async (req, res) => {
-  const { region } = req.params;
+// Fetch and save global policies
+exports.fetchAndSaveGlobalPolicies = async (req, res) => {
+  const { policies } = req.body;
 
   try {
-    const regionalPolicies = await propagationService.propagateRegionalPolicies(region);
-    res.status(200).json({
-      message: `Regional policies for ${region} propagated successfully`,
-      policies: regionalPolicies,
-    });
+    // If no policies are provided in the request, fetch them from the HQ Node
+    if (!policies || policies.length === 0) {
+      logger.info("No policies provided in request. Fetching from HQ Node...");
+      await propagationService.fetchAndSaveGlobalPoliciesFromHQ();
+    } else {
+      await propagationService.saveGlobalPolicies(policies);
+    }
+
+    res
+      .status(200)
+      .json({ message: "Global policies fetched and saved successfully" });
   } catch (err) {
-    logger.error("Error propagating regional policies:", err.message);
+    logger.error("Error in fetchAndSaveGlobalPolicies:", err.message);
     res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -246,7 +262,9 @@ exports.fetchLocalPolicies = async (req, res) => {
   const { branch } = req.params;
 
   try {
-    const localPolicies = await propagationService.propagateLocalPolicies(branch);
+    const localPolicies = await propagationService.propagateLocalPolicies(
+      branch
+    );
     res.status(200).json({
       message: `Local policies for ${branch} fetched successfully`,
       policies: localPolicies,
@@ -256,3 +274,4 @@ exports.fetchLocalPolicies = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+

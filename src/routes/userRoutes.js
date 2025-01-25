@@ -16,7 +16,7 @@ router.post("/login", userController.login);
 router.get("/logout", isAuthenticatedUser, userController.logout);
 router.get("/checkuser", isAuthenticatedUser, userController.checkUser);
 
-router.get("/", isAuthenticatedUser, authorizeRoles("customer"), userController.listUsers);
+router.get("/", isAuthenticatedUser, authorizeRoles("admin", "manager"), userController.listUsers);
 router.get("/:userID", userController.getUser);
 
 router.post("/", userController.createUser);

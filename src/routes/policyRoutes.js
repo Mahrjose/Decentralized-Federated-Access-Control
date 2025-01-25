@@ -1,7 +1,10 @@
 const express = require("express");
 const policyController = require("../controllers/policyController");
 const logger = require("../config/logger");
+const dotenv = require("dotenv");
+const { isAuthenticatedUser, authorizeRoles } = require("../middleware/auth");
 
+dotenv.config();
 const router = express.Router();
 
 // Log incoming requests
@@ -10,16 +13,63 @@ router.use((req, res, next) => {
   next();
 });
 
-router.get("/", policyController.listPolicies);
-router.get("/:policyID", policyController.getPolicy);
-router.post("/", policyController.createPolicy);
-router.put("/:policyID", policyController.updatePolicy);
-router.delete("/:policyID", policyController.deletePolicy);
+// ========= Policy Routes ==========
 
-router.post("/propagate/global", policyController.propagateGlobalPolicies);
-router.post("/propagate/regional/:region", policyController.propagateRegionalPolicies);
-router.get("/local/:branch", policyController.fetchLocalPolicies)
+router.get(
+  "/",
+  isAuthenticatedUser,
+  authorizeRoles("admin", "manager"),
+  policyController.listPolicies
+);
+router.get(
+  "/:policyID",
+  isAuthenticatedUser,
+  authorizeRoles("admin", "manager"),
+  policyController.getPolicy
+);
+router.post(
+  "/",
+  isAuthenticatedUser,
+  authorizeRoles("admin", "manager"),
+  policyController.createPolicy
+);
+router.put(
+  "/:policyID",
+  isAuthenticatedUser,
+  authorizeRoles("admin", "manager"),
+  policyController.updatePolicy
+);
+router.delete(
+  "/:policyID",
+  isAuthenticatedUser,
+  authorizeRoles("admin", "manager"),
+  policyController.deletePolicy
+);
 
+// ========= Propagation Routes ==========
+
+if (process.env.DECENTRALIZATION === "true") {
+  router.post(
+    "/propagate/global",
+    // isAuthenticatedUser,
+    // authorizeRoles("admin"),
+    policyController.propagateGlobalPolicies
+  );
+  
+  router.post(
+    "/propagate/global/fetch",
+    policyController.fetchAndSaveGlobalPolicies
+  );
+  
+  // router.post(
+  //   "/propagate/regional/:region",
+  //   isAuthenticatedUser,
+  //   authorizeRoles("admin", "manager"),
+  //   policyController.propagateRegionalPolicies
+  // );
+} else {
+  logger.info("Decentralization is disabled, Propagation routes are inactive.");
+}
 
 // Error handling middleware
 router.use((err, req, res, next) => {
