@@ -24,7 +24,7 @@ const validatePolicyInput = (policyData) => {
 
 // Create a new policy
 exports.createPolicy = async (req, res) => {
-  const { policyName, description, rules, scope } = req.body;
+  const { policyName, description, rules, scope, region } = req.body;
 
   try {
     // Validate input
@@ -33,7 +33,7 @@ exports.createPolicy = async (req, res) => {
     // Insert the new policy into the database
     const { data, error } = await supabase
       .from("policies")
-      .insert([{ policyname: policyName, description, rules, scope }])
+      .insert([{ policyname: policyName, description, rules, scope, region }])
       .select();
 
     if (error) {
@@ -257,21 +257,33 @@ exports.fetchAndSaveGlobalPolicies = async (req, res) => {
   }
 };
 
-// Fetch local policies (no propagation needed)
-exports.fetchLocalPolicies = async (req, res) => {
-  const { branch } = req.params;
-
+exports.propagateRegionalPolicies = async (req, res) => {
   try {
-    const localPolicies = await propagationService.propagateLocalPolicies(
-      branch
-    );
-    res.status(200).json({
-      message: `Local policies for ${branch} fetched successfully`,
-      policies: localPolicies,
-    });
+    // Fetch and push regional policies
+    await propagationService.pushRegionalPolicies();
+    res.status(200).json({ message: "Regional policies pushed successfully" });
   } catch (err) {
-    logger.error("Error fetching local policies:", err.message);
+    logger.error("Error in pushRegionalPolicies:", err.message);
     res.status(500).json({ error: "Internal server error" });
   }
 };
 
+exports.fetchAndSaveRegionalPolicies = async (req, res) => {
+
+  const { policies } = req.body;
+
+  try {
+
+    if (policies && policies.length > 0) {
+      await propagationService.saveRegionalPolicies(policies);
+      res.status(200).json({ message: "Regional policies saved successfully" });
+    } else {
+      // Pull regional policies
+      await propagationService.pullRegionalPolicies();
+      res.status(200).json({ message: "Regional policies pulled successfully" });
+    }
+  } catch (err) {
+    logger.error("Error in fetchAndSaveRegionalPolicies:", err.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
