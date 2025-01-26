@@ -65,7 +65,7 @@ const validateUserInput = (userData, isUpdate = false) => {
   return true;
 };
 
-exports.createUser = async (req, res) => {
+exports.registerUser = async (req, res) => {
   const {
     username,
     password,
@@ -332,10 +332,9 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    // Get context from middleware
+    req.session.userID = user.userid;
     const { location, lastlogin, deviceTrustLevel } = req.context;
 
-    // Update user attributes in the database
     const { data: updatedUser, error: updateError } = await supabase
       .from("users")
       .update({
@@ -365,8 +364,8 @@ exports.login = async (req, res) => {
         userid: user.userid,
         email: user.email,
         role: user.role,
-        // attributes: user.attributes,
-        lastlogin: user.lastlogin, 
+        // attributes: updatedUser.attributes,
+        lastlogin: user.lastlogin,
       },
     });
   } catch (err) {
