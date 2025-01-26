@@ -17,32 +17,32 @@ router.use((req, res, next) => {
 
 router.get(
   "/",
-  isAuthenticatedUser,
-  authorizeRoles("admin", "manager"),
+  // isAuthenticatedUser,
+  // authorizeRoles("admin", "manager"),
   policyController.listPolicies
 );
 router.get(
   "/:policyID",
-  isAuthenticatedUser,
-  authorizeRoles("admin", "manager"),
+  // isAuthenticatedUser,
+  // authorizeRoles("admin", "manager"),
   policyController.getPolicy
 );
 router.post(
   "/",
-  isAuthenticatedUser,
-  authorizeRoles("admin", "manager"),
+  // isAuthenticatedUser,
+  // authorizeRoles("admin", "manager"),
   policyController.createPolicy
 );
 router.put(
   "/:policyID",
-  isAuthenticatedUser,
-  authorizeRoles("admin", "manager"),
+  // isAuthenticatedUser,
+  // authorizeRoles("admin", "manager"),
   policyController.updatePolicy
 );
 router.delete(
   "/:policyID",
-  isAuthenticatedUser,
-  authorizeRoles("admin", "manager"),
+  // isAuthenticatedUser,
+  // authorizeRoles("admin", "manager"),
   policyController.deletePolicy
 );
 
@@ -55,18 +55,25 @@ if (process.env.DECENTRALIZATION === "true") {
     // authorizeRoles("admin"),
     policyController.propagateGlobalPolicies
   );
-  
+
   router.post(
     "/propagate/global/fetch",
     policyController.fetchAndSaveGlobalPolicies
   );
-  
-  // router.post(
-  //   "/propagate/regional/:region",
-  //   isAuthenticatedUser,
-  //   authorizeRoles("admin", "manager"),
-  //   policyController.propagateRegionalPolicies
-  // );
+
+  router.post(
+    "/propagate/regional/push",
+    // isAuthenticatedUser,
+    // authorizeRoles("admin", "manager"),
+    policyController.propagateRegionalPolicies
+  );
+
+  router.post(
+    "/propagate/regional/pull",
+    // isAuthenticatedUser,
+    // authorizeRoles("admin", "manager"),
+    policyController.fetchAndSaveRegionalPolicies
+  );
 } else {
   logger.info("Decentralization is disabled, Propagation routes are inactive.");
 }
