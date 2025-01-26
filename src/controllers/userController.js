@@ -1,8 +1,11 @@
 const supabase = require("../config/supabase");
-const bcrypt = require("bcrypt");
 const logger = require("../config/logger");
 const auditService = require("../services/auditService");
 const { setToken, clearToken } = require("../config/jwt");
+
+const bcrypt = require("bcrypt");
+
+// ================ USER MANAGEMENT ===================
 
 const validateUserInput = (userData, isUpdate = false) => {
   const {
@@ -34,7 +37,7 @@ const validateUserInput = (userData, isUpdate = false) => {
   // Validate role
   if (
     !isUpdate &&
-    (!role || !["admin", "customer", "manager"].includes(role))
+    (!role || !["admin", "customer", "employee", "manager"].includes(role))
   ) {
     throw new Error("Invalid role specified");
   }
@@ -62,7 +65,6 @@ const validateUserInput = (userData, isUpdate = false) => {
   return true;
 };
 
-// Create a new user
 exports.createUser = async (req, res) => {
   const {
     username,
@@ -206,7 +208,6 @@ exports.updateUser = async (req, res) => {
   }
 };
 
-// Delete a user
 exports.deleteUser = async (req, res) => {
   const { userID } = req.params;
 
@@ -248,8 +249,7 @@ exports.deleteUser = async (req, res) => {
   }
 };
 
-// List all users
-exports.listUsers = async (req, res) => {
+exports.fetchAllUsers = async (req, res) => {
   try {
     const { data, error } = await supabase
       .from("users")
@@ -269,8 +269,7 @@ exports.listUsers = async (req, res) => {
   }
 };
 
-// Get a specific user by ID
-exports.getUser = async (req, res) => {
+exports.fetchSingleUser = async (req, res) => {
   const { userID } = req.params;
 
   try {
@@ -303,7 +302,8 @@ exports.getUser = async (req, res) => {
   }
 };
 
-//User Login
+// ================== AUTH MANAGEMENT ==================
+
 exports.login = async (req, res) => {
   const { email, password } = req.body;
 
@@ -314,6 +314,7 @@ exports.login = async (req, res) => {
   }
 
   try {
+    // Fetch user from the database
     const { data: user, error } = await supabase
       .from("users")
       .select("*")
@@ -324,20 +325,48 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
+    // Validate password
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
+    // Get context from middleware
+    const { location, lastlogin, deviceTrustLevel } = req.context;
+
+    // Update user attributes in the database
+    const { data: updatedUser, error: updateError } = await supabase
+      .from("users")
+      .update({
+        attributes: {
+          location: location,
+          deviceTrustLevel: deviceTrustLevel,
+        },
+        lastlogin: lastlogin,
+      })
+      .eq("userid", user.userid)
+      .select();
+
+    if (updateError) {
+      logger.error("Error updating user attributes:", updateError.message);
+      return res
+        .status(500)
+        .json({ message: "Failed to update user attributes" });
+    }
+
+    // Set token for the user
     setToken(user, res);
 
+    // Return success response
     return res.status(200).json({
       message: "Login successful",
       user: {
-        id: user.id,
+        userid: user.userid,
         email: user.email,
         role: user.role,
+        // attributes: user.attributes,
+        lastlogin: user.lastlogin, 
       },
     });
   } catch (err) {
@@ -348,28 +377,12 @@ exports.login = async (req, res) => {
   }
 };
 
-//User logout
 exports.logout = async (req, res, next) => {
   try {
     clearToken(res);
     res.status(200).json({ message: "Logged Out" });
   } catch (err) {
     logger.error("Error during logout:", err.message);
-    return res
-      .status(500)
-      .json({ error: err.message || "Internal Server Error" });
-  }
-};
-
-exports.checkUser = async (req, res, next) => {
-  try {
-    if (!req.user) {
-      return res.status(401).json({ message: "User not authenticated" });
-    }
-    logger.info("CheckUser endpoint called: ", req.user);
-    res.json({ user: req.user });
-  } catch (err) {
-    logger.error("Error during user check:", err.message);
     return res
       .status(500)
       .json({ error: err.message || "Internal Server Error" });
