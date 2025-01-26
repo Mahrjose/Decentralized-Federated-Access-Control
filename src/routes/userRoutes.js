@@ -1,7 +1,9 @@
 const express = require("express");
-const userController = require("../controllers/userController");
 const logger = require("../config/logger");
+
+const userController = require("../controllers/userController");
 const { isAuthenticatedUser, authorizeRoles } = require("../middleware/auth");
+const { fetchContext } = require("../middleware/extractContext");
 
 const router = express.Router();
 
@@ -12,17 +14,41 @@ router.use((req, res, next) => {
 });
 
 // Routes
-router.post("/login", userController.login);
+router.post("/login", fetchContext, userController.login);
 router.get("/logout", isAuthenticatedUser, userController.logout);
-router.get("/checkuser", isAuthenticatedUser, userController.checkUser);
 
-router.get("/", isAuthenticatedUser, authorizeRoles("admin", "manager"), userController.listUsers);
-router.get("/:userID", userController.getUser);
+router.get(
+  "/fetch",
+  isAuthenticatedUser,
+  authorizeRoles("admin", "manager"),
+  userController.fetchAllUsers
+);
+router.get(
+  "/fetch/:userID",
+  isAuthenticatedUser,
+  authorizeRoles("admin", "manager"),
+  userController.fetchSingleUser
+);
 
-router.post("/", userController.createUser);
-router.put("/:userID", userController.updateUser);
+router.post(
+  "/create",
+  isAuthenticatedUser,
+  authorizeRoles("admin", "manager"),
+  userController.createUser
+);
+router.put(
+  "/update/:userID",
+  isAuthenticatedUser,
+  authorizeRoles("admin", "manager"),
+  userController.updateUser
+);
 
-router.delete("/:userID", userController.deleteUser);
+router.delete(
+  "/delete/:userID",
+  isAuthenticatedUser,
+  authorizeRoles("admin", "manager"),
+  userController.deleteUser
+);
 
 // Error handling middleware
 router.use((err, req, res, next) => {
