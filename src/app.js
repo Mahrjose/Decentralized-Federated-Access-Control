@@ -1,18 +1,20 @@
 const express = require("express");
 const bodyParser = require("body-parser");
+const cookieParser = require("cookie-parser");
+const session = require("express-session");
+// const cors = require("cors");
+
+const logger = require("./config/logger");
 const userRoutes = require("./routes/userRoutes");
 const policyRoutes = require("./routes/policyRoutes");
 const accessRoutes = require("./routes/accessRoutes");
-const logger = require("./config/logger");
-const cors = require('cors');
-const cookieParser = require("cookie-parser")
+// const { updateContext } = require("./controllers/contextController");
 
 const app = express();
 app.use(bodyParser.json());
 
-
 // app.use(cors({
-//   origin: "http://localhost:3000", 
+//   origin: "http://localhost:3000",
 //   credentials: true,
 // }));
 
@@ -23,6 +25,15 @@ app.use((req, res, next) => {
 });
 
 app.use(cookieParser());
+
+app.use(
+  session({
+    secret: `${process.env.SECRET}`,
+    resave: false,
+    saveUninitialized: true,
+    cookie: { secure: false },
+  })
+);
 
 // Routes
 app.use("/api/users", userRoutes);

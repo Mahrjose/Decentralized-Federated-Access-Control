@@ -1,5 +1,6 @@
-const dotenv = require("dotenv");
 const logger = require("./logger");
+
+const dotenv = require("dotenv");
 dotenv.config();
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -10,7 +11,6 @@ if (!JWT_SECRET) {
   throw new Error("JWT_SECRET is required");
 }
 
-// Generate a JWT token
 const jwt = require("jsonwebtoken");
 
 const generateToken = (payload) => {
@@ -31,7 +31,9 @@ const setToken = (user, res) => {
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? "strict" : "lax",
-    expires: new Date(Date.now() + parseInt(process.env.COOKIE_EXPIRE) * 24 * 60 * 60 * 1000),
+    expires: new Date(
+      Date.now() + parseInt(process.env.COOKIE_EXPIRE) * 24 * 60 * 60 * 1000
+    ),
   });
 };
 

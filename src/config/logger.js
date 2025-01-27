@@ -1,6 +1,6 @@
 const winston = require("winston");
-const dotenv = require("dotenv");
 
+const dotenv = require("dotenv");
 dotenv.config();
 
 const logger = winston.createLogger({
