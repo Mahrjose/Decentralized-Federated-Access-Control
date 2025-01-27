@@ -1,6 +1,7 @@
 const express = require("express");
 const accessController = require("../controllers/accessController");
 const logger = require("../config/logger");
+const { fetchAndSaveContext } = require("../middleware/fetchAndSaveContext");
 
 const router = express.Router();
 
@@ -10,8 +11,7 @@ router.use((req, res, next) => {
   next();
 });
 
-router.post("/check", accessController.checkAccess);
-router.post("/evaluate", accessController.evaluatePolicy);
+router.post("/evaluate", fetchAndSaveContext, accessController.evaluatePolicy);
 
 // Error handling middleware
 router.use((err, req, res, next) => {

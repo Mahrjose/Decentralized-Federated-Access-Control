@@ -1,13 +1,12 @@
 const supabase = require("../config/supabase");
 const policyEngine = require("../services/policyEngine");
 const logger = require("../config/logger");
-const auditService = require("../services/auditService");
+// const auditService = require("../services/auditService");
 
-// Fetch user data from Supabase
 async function fetchUserData(userID) {
   const { data, error } = await supabase
     .from("users")
-    .select("role, attributes")
+    .select("username, role")
     .eq("userid", userID)
     .single();
 
@@ -18,11 +17,9 @@ async function fetchUserData(userID) {
     );
     throw new Error(`Failed to fetch user data: ${error.message}`);
   }
-
   return data;
 }
 
-// Fetch policies based on user location and scope
 async function fetchPoliciesByScope(userRole, location) {
   const { data: policies, error } = await supabase.from("policies").select("*");
 
@@ -39,8 +36,8 @@ async function fetchPoliciesByScope(userRole, location) {
     // Check if the policy applies to the user's location and scope
     const scopeMatch =
       policy.scope === "global" ||
-      (policy.scope === "regional" && policy.region === location.region) ||
-      (policy.scope === "local" && policy.branch === location.branch);
+      (policy.scope === "regional" && policy.country === location.country) ||
+      (policy.scope === "local" && policy.city === location.city);
 
     // Only include policies that match both role and scope
     return roleMatch && scopeMatch;
@@ -49,72 +46,38 @@ async function fetchPoliciesByScope(userRole, location) {
   return applicablePolicies;
 }
 
-// Evaluate policy compliance
 exports.evaluatePolicy = async (req, res) => {
-  const { userID, action, resource, context } = req.body;
+  const { action, resource } = req.body;
+  const userID = req.session.userID;
 
   try {
-    // Fetch user data
     const userData = await fetchUserData(userID);
+    const userContext = req.context; // Includes location Obj, lastlogin, deviceTrustLevel
 
-    // Fetch applicable policies based on scope and location
-    const policies = await fetchPoliciesByScope(userData.role, context.location);
+    const policies = await fetchPoliciesByScope(
+      userData.role,
+      userContext.location
+    );
 
-    // Evaluate policy
     const result = await policyEngine.evaluate(
-      userData,
       action,
       resource,
-      context,
+      userContext,
+      userData,
       policies
     );
 
-    // Log the access request and result
-    await auditService.logAccessRequest(
-      userID,
-      action,
-      resource,
-      context,
-      result
-    );
-
+    // await auditService.logAccessRequest(
+    //   userID,
+    //   action,
+    //   resource,
+    //   context,
+    //   result
+    // );
     res.status(200).json(result);
   } catch (err) {
     logger.error(
-      `Unexpected error during policy evaluation for user ${userID}:`,
-      err.message
-    );
-    res.status(500).json({ error: "Internal server error" });
-  }
-};
-
-// Check access to a resource
-exports.checkAccess = async (req, res) => {
-  const { userID, resource, context } = req.body;
-
-  try {
-    // Fetch user data
-    const userData = await fetchUserData(userID);
-
-    // Fetch applicable policies based on scope and location
-    const policies = await fetchPoliciesByScope(userData.role, context.location);
-
-    // Check access
-    const result = await policyEngine.checkAccess(userData, resource, policies);
-
-    // Log the access request and result
-    await auditService.logAccessRequest(
-      userID,
-      "checkAccess",
-      resource,
-      context,
-      result
-    );
-
-    res.status(200).json(result);
-  } catch (err) {
-    logger.error(
-      `Unexpected error during access check for user ${userID}:`,
+      `Error during policy evaluation for user ${userID}:`,
       err.message
     );
     res.status(500).json({ error: "Internal server error" });
