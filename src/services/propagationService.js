@@ -1,7 +1,8 @@
-const supabase = require("../config/supabase");
-const logger = require("../config/logger");
 const axios = require("axios");
 const dotenv = require("dotenv");
+
+const supabase = require("../config/supabase");
+const logger = require("../config/logger");
 
 dotenv.config();
 
@@ -38,13 +39,18 @@ exports.fetchGlobalPolicies = async () => {
   }
 };
 
-exports.fetchAndSaveGlobalPoliciesFromHQ = async () => {
+exports.fetchAndSaveGlobalPolicies = async () => {
   try {
     const hqBaseUrl = getNodeBaseUrl("HQ");
 
     const response = await axios.post(
-      `${hqBaseUrl}/api/policies/propagate/global`,
-      { isFetchReq: true }
+      `${hqBaseUrl}/api/policies/propagate/global/push`,
+      { isFetchReq: true },
+      {
+        headers: {
+          "X-Internal-Propagation": "true",
+        },
+      }
     );
 
     const globalPolicies = response.data.policies;
@@ -66,14 +72,29 @@ exports.propagateGlobalPolicies = async () => {
   try {
     const globalPolicies = await this.fetchGlobalPolicies();
 
-    // Send global policies to all regional nodes
-    const regionalNodes = ["REGIONAL_ASIA", "REGIONAL_EUROPE"];
-    for (const nodeId of regionalNodes) {
+    const nodeList = [
+      "REGIONAL_ASIA",
+      "REGIONAL_EUROPE",
+      "LOCAL_ISTANBUL",
+      "LOCAL_DELHI",
+      "LOCAL_BERLIN",
+      "LOCAL_LONDON",
+    ];
+
+    for (const nodeId of nodeList) {
       const baseUrl = getNodeBaseUrl(nodeId);
       try {
-        await axios.post(`${baseUrl}/api/policies/propagate/global/fetch`, {
-          policies: globalPolicies,
-        });
+        await axios.post(
+          `${baseUrl}/api/policies/propagate/global/fetch`,
+          {
+            policies: globalPolicies,
+          },
+          {
+            headers: {
+              "X-Internal-Propagation": "true",
+            },
+          }
+        );
         logger.info(`Global policies propagated to ${nodeId}`);
       } catch (err) {
         logger.error(
@@ -135,11 +156,127 @@ exports.saveGlobalPolicies = async (policies) => {
   }
 };
 
+exports.propagateGlobalPolicyUpdate = async (oldPolicy, newPolicy) => {
+  try {
+    if (oldPolicy.scope !== "global" || newPolicy.scope !== "global") {
+      logger.warn("Skipping non-global policy update propagation");
+      return;
+    }
+
+    const nodeList = [
+      "REGIONAL_ASIA",
+      "REGIONAL_EUROPE",
+      "LOCAL_ISTANBUL",
+      "LOCAL_DELHI",
+      "LOCAL_BERLIN",
+      "LOCAL_LONDON",
+    ];
+
+    for (const nodeId of nodeList) {
+      const baseUrl = getNodeBaseUrl(nodeId);
+      try {
+        const response = await axios.post(
+          `${baseUrl}/api/policies/propagate/global/update`,
+          {
+            oldPolicy,
+            newPolicy,
+          },
+          {
+            headers: {
+              "X-Internal-Propagation": "true",
+            },
+          }
+        );
+
+        if (response.status === 200) {
+          logger.info(
+            `Successfully propagated global policy update to node: ${nodeId}`
+          );
+        } else {
+          logger.warn(
+            `Unexpected response status ${response.status} from node: ${nodeId}`
+          );
+        }
+      } catch (error) {
+        logger.error(
+          `Failed to propagate global policy update to node: ${nodeId}`,
+          error
+        );
+      }
+    }
+
+    logger.info("Global policy update propagation completed.");
+  } catch (error) {
+    logger.error(
+      "An error occurred during global policy update propagation:",
+      error
+    );
+    throw error;
+  }
+};
+
+exports.propagateGlobalPolicyDelete = async (oldPolicy) => {
+  try {
+    if (oldPolicy.scope !== "global") {
+      logger.warn("Skipping non-global policy delete propagation");
+      return;
+    }
+
+    const nodeList = [
+      "REGIONAL_ASIA",
+      "REGIONAL_EUROPE",
+      "LOCAL_ISTANBUL",
+      "LOCAL_DELHI",
+      "LOCAL_BERLIN",
+      "LOCAL_LONDON",
+    ];
+
+    for (const nodeId of nodeList) {
+      const baseUrl = getNodeBaseUrl(nodeId);
+      try {
+        const response = await axios.post(
+          `${baseUrl}/api/policies/propagate/global/delete`,
+          {
+            oldPolicy,
+          },
+          {
+            headers: {
+              "X-Internal-Propagation": "true",
+            },
+          }
+        );
+
+        if (response.status === 200) {
+          logger.info(
+            `Successfully propagated global policy delete to node: ${nodeId}`
+          );
+        } else {
+          logger.warn(
+            `Unexpected response status ${response.status} from node: ${nodeId}`
+          );
+        }
+      } catch (error) {
+        logger.error(
+          `Failed to propagate global policy delete to node: ${nodeId}`,
+          error
+        );
+      }
+    }
+
+    logger.info("Global policy delete propagation completed.");
+  } catch (error) {
+    logger.error(
+      "An error occurred during global policy delete propagation:",
+      error
+    );
+    throw error;
+  }
+};
+
 // ========== REGIONAL POLICIES ==========
 
-exports.pushRegionalPolicies = async () => {
+exports.propagateRegionalPolicies = async (nodeTarget) => {
   try {
-    // Fetch regional policies from the current node's database
     const { data: regionalPolicies, error } = await supabase
       .from("policies")
       .select("*")
@@ -155,24 +292,35 @@ exports.pushRegionalPolicies = async () => {
       return;
     }
 
-    // Determine the region of the current node
     const currentRegion = process.env.REGION;
+    let localNodes;
 
-    // Propagate to child nodes based on region
-    const localNodes = currentRegion
-      ? // If region is specified, propagate to local nodes in the same region
-        currentRegion === "Asia"
-        ? ["LOCAL_ISTANBUL", "LOCAL_DELHI"]
-        : ["LOCAL_BERLIN", "LOCAL_LONDON"]
-      : // If region is null, propagate to all local nodes
-        ["LOCAL_ISTANBUL", "LOCAL_DELHI", "LOCAL_BERLIN", "LOCAL_LONDON"];
+    if (!nodeTarget) {
+      localNodes = currentRegion
+        ? // If region is specified, propagate to local nodes in the same region
+          currentRegion === "Asia"
+          ? ["LOCAL_ISTANBUL", "LOCAL_DELHI"]
+          : ["LOCAL_BERLIN", "LOCAL_LONDON"]
+        : // If region is null, propagate to all local nodes
+          ["LOCAL_ISTANBUL", "LOCAL_DELHI", "LOCAL_BERLIN", "LOCAL_LONDON"];
+    } else {
+      localNodes = [nodeTarget];
+    }
 
     for (const nodeId of localNodes) {
       const baseUrl = getNodeBaseUrl(nodeId);
       try {
-        await axios.post(`${baseUrl}/api/policies/propagate/regional/pull`, {
-          policies: regionalPolicies,
-        });
+        await axios.post(
+          `${baseUrl}/api/policies/propagate/regional/fetch`,
+          {
+            policies: regionalPolicies,
+          },
+          {
+            headers: {
+              "X-Internal-Propagation": "true",
+            },
+          }
+        );
         logger.info(`Regional policies pushed to ${nodeId}`);
       } catch (err) {
         logger.error(
@@ -189,9 +337,8 @@ exports.pushRegionalPolicies = async () => {
   }
 };
 
-exports.pullRegionalPolicies = async (policies) => {
+exports.fetchRegionalPolicies = async (policies) => {
   try {
-    // Ensure this is run only from a Local Node
     if (process.env.NODE_TYPE !== "local") {
       logger.error("pullRegionalPolicies can only be run from a Local Node");
       throw new Error("This API is only usable from a Local Node");
@@ -207,7 +354,6 @@ exports.pullRegionalPolicies = async (policies) => {
     // Determine the region of the current node
     const currentRegion = process.env.REGION;
 
-    // Fetch regional policies from the appropriate Regional Node(s)
     const regionalNodes = currentRegion
       ? // If region is specified, pull from the corresponding Regional Node
         [currentRegion === "Asia" ? "REGIONAL_ASIA" : "REGIONAL_EUROPE"]
@@ -220,7 +366,15 @@ exports.pullRegionalPolicies = async (policies) => {
       const baseUrl = getNodeBaseUrl(nodeId);
       try {
         const response = await axios.post(
-          `${baseUrl}/api/policies/propagate/regional/push`
+          `${baseUrl}/api/policies/propagate/regional/push`,
+          {
+            targetNode: `${process.env.NODE_ID}`,
+          },
+          {
+            headers: {
+              "X-Internal-Propagation": "true",
+            },
+          }
         );
         if (response.data && Array.isArray(response.data)) {
           fetchedPolicies = fetchedPolicies.concat(response.data);
@@ -234,7 +388,6 @@ exports.pullRegionalPolicies = async (policies) => {
       }
     }
 
-    // Save the fetched policies to the local database
     await this.saveRegionalPolicies(fetchedPolicies);
     logger.info("Regional policies pulled and saved successfully.");
   } catch (err) {
@@ -281,5 +434,122 @@ exports.saveRegionalPolicies = async (policies) => {
   } catch (err) {
     logger.error("Error in saveRegionalPolicies:", err.message);
     throw err;
+  }
+};
+
+exports.propagateRegionalPolicyUpdate = async (oldPolicy, newPolicy) => {
+  try {
+    if (oldPolicy.scope !== "regional" || newPolicy.scope !== "regional") {
+      logger.warn("Skipping non-regional policy update propagation");
+      return;
+    }
+
+    const currentRegion = process.env.REGION;
+    localNodes = currentRegion
+      ? // If region is specified, propagate to local nodes in the same region
+        currentRegion === "Asia"
+        ? ["LOCAL_ISTANBUL", "LOCAL_DELHI"]
+        : ["LOCAL_BERLIN", "LOCAL_LONDON"]
+      : // If region is null, propagate to all local nodes
+        ["LOCAL_ISTANBUL", "LOCAL_DELHI", "LOCAL_BERLIN", "LOCAL_LONDON"];
+
+    for (const nodeId of localNodes) {
+      const baseUrl = getNodeBaseUrl(nodeId);
+      try {
+        const response = await axios.post(
+          `${baseUrl}/api/policies/propagate/regional/update`,
+          {
+            oldPolicy,
+            newPolicy,
+          },
+          {
+            headers: {
+              "X-Internal-Propagation": "true",
+            },
+          }
+        );
+
+        if (response.status === 200) {
+          logger.info(
+            `Successfully propagated regional policy update to node: ${nodeId}`
+          );
+        } else {
+          logger.warn(
+            `Unexpected response status ${response.status} from node: ${nodeId}`
+          );
+        }
+      } catch (error) {
+        logger.error(
+          `Failed to propagate regional policy update to node: ${nodeId}`,
+          error
+        );
+      }
+    }
+
+    logger.info("Regional policy update propagation completed.");
+  } catch (error) {
+    logger.error(
+      "An error occurred during Regional policy update propagation:",
+      error
+    );
+    throw error;
+  }
+};
+
+exports.propagateRegionalPolicyDelete = async (oldPolicy) => {
+  try {
+    if (oldPolicy.scope !== "regional") {
+      logger.warn("Skipping non-regional policy delete propagation");
+      return;
+    }
+
+    const currentRegion = process.env.REGION;
+    localNodes = currentRegion
+      ? // If region is specified, propagate to local nodes in the same region
+        currentRegion === "Asia"
+        ? ["LOCAL_ISTANBUL", "LOCAL_DELHI"]
+        : ["LOCAL_BERLIN", "LOCAL_LONDON"]
+      : // If region is null, propagate to all local nodes
+        ["LOCAL_ISTANBUL", "LOCAL_DELHI", "LOCAL_BERLIN", "LOCAL_LONDON"];
+
+    for (const nodeId of localNodes) {
+      const baseUrl = getNodeBaseUrl(nodeId);
+      try {
+        const response = await axios.post(
+          `${baseUrl}/api/policies/propagate/regional/delete`,
+          {
+            oldPolicy,
+          },
+          {
+            headers: {
+              "X-Internal-Propagation": "true",
+            },
+          }
+        );
+
+        if (response.status === 200) {
+          logger.info(
+            `Successfully propagated regional policy delete to node: ${nodeId}`
+          );
+        } else {
+          logger.warn(
+            `Unexpected response status ${response.status} from node: ${nodeId}`
+          );
+        }
+      } catch (error) {
+        logger.error(
+          `Failed to propagate regional policy delete to node: ${nodeId}`,
+          error
+        );
+      }
+    }
+
+    logger.info("Regional policy delete propagation completed.");
+  } catch (error) {
+    logger.error(
+      "An error occurred during regional policy delete propagation:",
+      error
+    );
+    throw error;
   }
 };
