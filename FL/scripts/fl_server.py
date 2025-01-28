@@ -13,8 +13,6 @@ app = Flask(__name__)
 # Global model
 global_model = None
 
-# fl_server.py
-
 @app.route("/aggregate", methods=["POST"])
 def aggregate():
     global global_model
