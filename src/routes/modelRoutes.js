@@ -17,16 +17,16 @@ router.use((req, res, next) => {
 
 router.post(
   "/train",
-  //isAuthenticatedUser,
-  //authorizeRoles("admin", "manager", "employee"),
-  //fetchAndSaveContext,
+  isAuthenticatedUser,
+  authorizeRoles("admin", "manager", "employee"),
+  fetchAndSaveContext,
   modelController.train
 );
 router.post(
   "/use",
-  //isAuthenticatedUser,
-  //authorizeRoles("admin", "manager", "employee"),
-  //fetchAndSaveContext,
+  isAuthenticatedUser,
+  authorizeRoles("admin", "manager", "employee"),
+  fetchAndSaveContext,
   modelController.use
 );
 

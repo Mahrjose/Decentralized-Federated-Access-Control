@@ -1,7 +1,7 @@
 FROM node:18
 
 # Install Python and pip
-RUN apt-get update && apt-get install -y python3 python3-pip
+RUN apt-get update && apt-get install -y python3 python3-pip lsof
 RUN apt-get install -y python3.11-venv
 
 # Set up Python environment
@@ -26,5 +26,4 @@ EXPOSE ${NODE_PORT}
 EXPOSE ${FL_SERVER_PORT}  
 
 # Start both Node.js and federated learning server
-# CMD ["sh", "-c", "node src/server.js & python3 FL/scripts/fl_server.py"]
 CMD ["sh", "/app/start_node.sh"]
