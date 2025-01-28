@@ -8,6 +8,7 @@ const logger = require("./config/logger");
 const userRoutes = require("./routes/userRoutes");
 const policyRoutes = require("./routes/policyRoutes");
 const accessRoutes = require("./routes/accessRoutes");
+const modelRoutes = require("./routes/modelRoutes");
 // const { updateContext } = require("./controllers/contextController");
 
 const app = express();
@@ -39,6 +40,7 @@ app.use(
 app.use("/api/users", userRoutes);
 app.use("/api/policies", policyRoutes);
 app.use("/api/access", accessRoutes);
+app.use("/api/model", modelRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
