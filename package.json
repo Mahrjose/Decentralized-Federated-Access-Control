@@ -19,7 +19,9 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
+    "express-session": "^1.18.1",
     "jsonwebtoken": "^9.0.2",
+    "websocket": "^1.0.35",
     "winston": "^3.17.0"
   },
   "devDependencies": {
