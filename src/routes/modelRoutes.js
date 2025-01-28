@@ -15,8 +15,20 @@ router.use((req, res, next) => {
   next();
 });
 
-router.post("/train", modelController.train);
-router.post("/use", modelController.use);
+router.post(
+  "/train",
+  //isAuthenticatedUser,
+  //authorizeRoles("admin", "manager", "employee"),
+  //fetchAndSaveContext,
+  modelController.train
+);
+router.post(
+  "/use",
+  //isAuthenticatedUser,
+  //authorizeRoles("admin", "manager", "employee"),
+  //fetchAndSaveContext,
+  modelController.use
+);
 
 // Error handling middleware
 router.use((err, req, res, next) => {
