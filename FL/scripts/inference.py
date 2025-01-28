@@ -32,8 +32,6 @@ def detect_fraud():
     try:
         prediction = model.predict(input_data)
         print(f"Prediction: {'Fraud' if prediction[0] == 1 else 'Not Fraud'}")
-        # Return the result
-        print("Fraud" if prediction[0] == 1 else "Not Fraud")
     except Exception as e:
         print(f"Error during prediction: {e}")
 
