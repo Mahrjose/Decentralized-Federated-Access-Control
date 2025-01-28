@@ -1,27 +1,23 @@
-# Use an official Node.js runtime as the base image
 FROM node:18
 
-# Set the working directory inside the container
+# Install Python and pip
+RUN apt-get update && apt-get install -y python3 python3-pip
+
+# Set up Python environment
+WORKDIR /app/FL/scripts
+COPY FL/scripts/requirements.txt .
+RUN python3 -m pip install --upgrade pip
+RUN python3 -m pip install -r requirements.txt
+
+# Set up Node.js environment
 WORKDIR /app
-
-# Copy package.json and package-lock.json
 COPY package*.json ./
-
-# Install dependencies
 RUN npm install
-
-# Copy the rest of the application code
 COPY . .
 
-# Copy the entrypoint script
-COPY entrypoint.sh /app/entrypoint.sh
+# Expose ports
+EXPOSE ${NODE_PORT}
+EXPOSE ${FL_SERVER_PORT}  
 
-# Make the entrypoint script executable
-RUN chmod +x /app/entrypoint.sh
-
-# Expose the port your app runs on
-EXPOSE 5000
-
-# Set the entrypoint
-# ENTRYPOINT ["./entrypoint.sh"]
-CMD ["node", "server.js"]
+# Start both Node.js and federated learning server
+CMD ["sh", "-c", "node src/server.js & python3 FL/scripts/fl_server.py"]

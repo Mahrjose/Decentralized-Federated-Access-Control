@@ -3,149 +3,220 @@ services:
   hq:
     build: .
     container_name: hq
+    network_mode: host
     environment:
       NODE_TYPE: global
-      NODE_ID: hq
-      LOCATION: Dhaka, BD
+      NODE_ID: HQ
+      REGION: global
+      CITY: Dhaka
+      COUNTRY: BD
       PORT: 5000
-      SUPABASE_URL: ${SUPABASE_URL}
-      SUPABASE_KEY: ${SUPABASE_KEY}
+      WS_PORT: 8080  
+      FL_SERVER_PORT: 9080    
+      SUPABASE_URL: ${HQ_SUPABASE_URL}
+      SUPABASE_KEY: ${HQ_SUPABASE_KEY}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
       COOKIE_EXPIRE: ${COOKIE_EXPIRE}
       NODE_ENV: ${NODE_ENV}
-    ports:
-      - "5000:5000"
-    networks:
-      - bank-network
+      DECENTRALIZATION: ${DECENTRALIZATION:-true}
+      DATA_PATH: ${HQ_DATA_PATH}
+      MODEL_PATH: ${HQ_MODEL_PATH}
+    # ports:
+    #   - "5000:5000"
+    # networks:
+    #   - supabase_network_hq
+    #   - node_network
 
   # Regional Node (Asia - Tokyo, JP)
   regional-asia:
     build: .
     container_name: regional-asia
+    network_mode: host
     environment:
       NODE_TYPE: regional
-      NODE_ID: regional-asia
+      NODE_ID: REGIONAL_ASIA
       REGION: Asia
-      LOCATION: Tokyo, JP
-      PORT: 5000
-      SUPABASE_URL: ${SUPABASE_URL}
-      SUPABASE_KEY: ${SUPABASE_KEY}
+      COUNTRY: JP
+      CITY: Tokyo
+      PORT: 5001
+      WS_PORT: 8081
+      FL_SERVER_PORT: 9081
+      SUPABASE_URL: ${REGIONAL_ASIA_SUPABASE_URL}
+      SUPABASE_KEY: ${REGIONAL_ASIA_SUPABASE_KEY}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
       COOKIE_EXPIRE: ${COOKIE_EXPIRE}
       NODE_ENV: ${NODE_ENV}
-    ports:
-      - "5001:5000"
-    networks:
-      - bank-network
+      DECENTRALIZATION: ${DECENTRALIZATION:-true}
+      DATA_PATH: ${REGIONAL_ASIA_DATA_PATH}
+      MODEL_PATH: ${REGIONAL_ASIA_MODEL_PATH}
+    # ports:
+    #   - "5001:5000"
+    # networks:
+    #   - supabase_network_regional_asia
+    #   - node_network 
 
   # Regional Node (Europe - Paris, FR)
   regional-europe:
     build: .
     container_name: regional-europe
+    network_mode: host
     environment:
       NODE_TYPE: regional
-      NODE_ID: regional-europe
+      NODE_ID: REGIONAL_EUROPE
       REGION: Europe
-      LOCATION: Paris, FR
-      PORT: 5000
-      SUPABASE_URL: ${SUPABASE_URL}
-      SUPABASE_KEY: ${SUPABASE_KEY}
+      CITY: Paris
+      COUNTRY: FR
+      PORT: 5002
+      WS_PORT: 8082
+      FL_SERVER_PORT: 9082
+      SUPABASE_URL: ${REGIONAL_EUROPE_SUPABASE_URL}
+      SUPABASE_KEY: ${REGIONAL_EUROPE_SUPABASE_KEY}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
       COOKIE_EXPIRE: ${COOKIE_EXPIRE}
       NODE_ENV: ${NODE_ENV}
-    ports:
-      - "5002:5000"
-    networks:
-      - bank-network
+      DECENTRALIZATION: ${DECENTRALIZATION:-true}
+      DATA_PATH: ${REGIONAL_EUROPE_DATA_PATH}
+      MODEL_PATH: ${REGIONAL_EUROPE_MODEL_PATH}
+    # ports:
+    #   - "5002:5000"
+    # networks:
+    #   - supabase_network_regional_europe
+    #   - node_network
 
   # Local Node (Asia - Istanbul, TR)
   local-istanbul:
     build: .
     container_name: local-istanbul
+    network_mode: host
     environment:
       NODE_TYPE: local
-      NODE_ID: local-istanbul
+      NODE_ID: LOCAL_ISTANBUL
       REGION: Asia
-      LOCATION: Istanbul, TR
-      PORT: 5000
-      SUPABASE_URL: ${SUPABASE_URL}
-      SUPABASE_KEY: ${SUPABASE_KEY}
+      CITY: Istanbul
+      COUNTRY: TR      
+      PORT: 5003
+      WS_PORT: 8083
+      FL_SERVER_PORT: 9083
+      SUPABASE_URL: ${LOCAL_ISTANBUL_SUPABASE_URL}
+      SUPABASE_KEY: ${LOCAL_ISTANBUL_SUPABASE_KEY}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
       COOKIE_EXPIRE: ${COOKIE_EXPIRE}
       NODE_ENV: ${NODE_ENV}
-    ports:
-      - "5003:5000"
-    networks:
-      - bank-network
+      DECENTRALIZATION: ${DECENTRALIZATION:-true}
+      DATA_PATH: ${LOCAL_ISTANBUL_DATA_PATH}
+      MODEL_PATH: ${LOCAL_ISTANBUL_MODEL_PATH}
+    # ports:
+    #   - "5003:5000"
+    # networks:
+    #   - supabase_network_local_istanbul
+    #   - node_network
 
   # Local Node (Asia - Delhi, IN)
   local-delhi:
     build: .
     container_name: local-delhi
+    network_mode: host
     environment:
       NODE_TYPE: local
-      NODE_ID: local-delhi
+      NODE_ID: LOCAL_DELHI
       REGION: Asia
-      LOCATION: Delhi, IN
-      PORT: 5000
-      SUPABASE_URL: ${SUPABASE_URL}
-      SUPABASE_KEY: ${SUPABASE_KEY}
+      CITY: Delhi
+      COUNTRY: IN
+      PORT: 5004
+      WS_PORT: 8084
+      FL_SERVER_PORT: 9084
+      SUPABASE_URL: ${LOCAL_DELHI_SUPABASE_URL}
+      SUPABASE_KEY: ${LOCAL_DELHI_SUPABASE_KEY}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
       COOKIE_EXPIRE: ${COOKIE_EXPIRE}
       NODE_ENV: ${NODE_ENV}
-    ports:
-      - "5004:5000"
-    networks:
-      - bank-network
+      DECENTRALIZATION: ${DECENTRALIZATION:-true}
+      DATA_PATH: ${LOCAL_DELHI_DATA_PATH}
+      MODEL_PATH: ${LOCAL_DELHI_MODEL_PATH}
+    # ports:
+    #   - "5004:5000"
+    # networks:
+    #   - supabase_network_local_delhi
+    #   - node_network
 
   # Local Node (Europe - Berlin, DE)
   local-berlin:
     build: .
     container_name: local-berlin
+    network_mode: host
     environment:
       NODE_TYPE: local
-      NODE_ID: local-berlin
+      NODE_ID: LOCAL_BERLIN
       REGION: Europe
-      LOCATION: Berlin, DE
-      PORT: 5000
-      SUPABASE_URL: ${SUPABASE_URL}
-      SUPABASE_KEY: ${SUPABASE_KEY}
+      CITY: Berlin
+      COUNTRY: DE
+      PORT: 5005
+      WS_PORT: 8085
+      FL_SERVER_PORT: 9085
+      SUPABASE_URL: ${LOCAL_BERLIN_SUPABASE_URL}
+      SUPABASE_KEY: ${LOCAL_BERLIN_SUPABASE_KEY}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
       COOKIE_EXPIRE: ${COOKIE_EXPIRE}
       NODE_ENV: ${NODE_ENV}
-    ports:
-      - "5005:5000"
-    networks:
-      - bank-network
+      DECENTRALIZATION: ${DECENTRALIZATION:-true}
+      DATA_PATH: ${LOCAL_BERLIN_DATA_PATH}
+      MODEL_PATH: ${LOCAL_BERLIN_MODEL_PATH}
+    # ports:
+    #   - "5005:5000"
+    # networks:
+    #   - supabase_network_local_berlin
+    #   - node_network
 
   # Local Node (Europe - London, UK)
   local-london:
     build: .
     container_name: local-london
+    network_mode: host
     environment:
       NODE_TYPE: local
-      NODE_ID: local-london
+      NODE_ID: LOCAL_LONDON
       REGION: Europe
-      LOCATION: London, UK
-      PORT: 5000
-      SUPABASE_URL: ${SUPABASE_URL}
-      SUPABASE_KEY: ${SUPABASE_KEY}
+      CITY: London
+      COUNTRY: UK
+      PORT: 5006
+      WS_PORT: 8086
+      FL_SERVER_PORT: 9086
+      SUPABASE_URL: ${LOCAL_LONDON_SUPABASE_URL}
+      SUPABASE_KEY: ${LOCAL_LONDON_SUPABASE_KEY}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
       COOKIE_EXPIRE: ${COOKIE_EXPIRE}
       NODE_ENV: ${NODE_ENV}
-    ports:
-      - "5006:5000"
-    networks:
-      - bank-network
+      DECENTRALIZATION: ${DECENTRALIZATION:-true}
+      DATA_PATH: ${LOCAL_LONDON_DATA_PATH}
+      MODEL_PATH: ${LOCAL_LONDON_MODEL_PATH}
+    # ports:
+    #   - "5006:5000"
+    # networks:
+    #   - supabase_network_local_london
+    #   - node_network
 
 # Docker Networks
-networks:
-  bank-network:
-    driver: bridge
+# networks:
+#   supabase_network_hq:
+#     external: true
+#   supabase_network_regional_asia:
+#     external: true
+#   supabase_network_regional_europe:
+#     external: true
+#   supabase_network_local_istanbul:
+#     external: true
+#   supabase_network_local_delhi:
+#     external: true
+#   supabase_network_local_berlin:
+#     external: true
+#   supabase_network_local_london:
+#     external: true
+#   node_network:
+#     driver: bridge
