@@ -9,11 +9,11 @@ const wss = new WebSocket.Server({ port: WS_PORT });
 const nodeWsPorts = {
   HQ: 8080,
   REGIONAL_ASIA: 8081,
-  //REGIONAL_EUROPE: 8082,
+  REGIONAL_EUROPE: 8082,
   LOCAL_ISTANBUL: 8083,
   LOCAL_DELHI: 8084,
-  //LOCAL_BERLIN: 8085,
-  //LOCAL_LONDON: 8086,
+  LOCAL_BERLIN: 8085,
+  LOCAL_LONDON: 8086,
 };
 
 const connectToNode = (nodeId, wsPort, retries = 5, interval = 5000) => {
